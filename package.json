@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon ./src/index.js"
+    "start": "nodemon ./src/index.js",
+    "lint": "npx eslint ."
   },
   "keywords": [],
   "author": "",
@@ -24,5 +25,9 @@
     "sequelize": "^6.37.7",
     "swagger-ui-express": "^5.0.1",
     "yamljs": "^0.3.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.35.0",
+    "eslint-plugin-import": "^2.32.0"
   }
 }
