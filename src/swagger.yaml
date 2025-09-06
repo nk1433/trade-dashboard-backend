@@ -1,0 +1,190 @@
+openapi: 3.0.3
+info:
+  title: Market Data Sync and Stats API
+  version: 1.1.0
+  description: >
+    APIs for syncing 52-week stats, daily & 52-week market breadth, daily data, and fetching instrument stats.
+servers:
+  - url: http://localhost:3015
+    description: Local dev server
+
+paths:
+  /sync-52week-stats:
+    post:
+      summary: Sync 52-week statistics for instruments
+      description: Fetches last 1 year historical candles for instruments and calculates 52-week highs, lows, EMAs, and average volume.
+      responses:
+        '200':
+          description: Sync completed successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid or empty stocks input
+        '500':
+          description: Server error during sync
+
+  /sync-52week-marketbreath:
+    post:
+      summary: Sync 52-week market breadth data
+      description: Syncs daily counts of stocks up/down by certain percentages in the last year.
+      responses:
+        '200':
+          description: Market breadth synced successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid or empty stocks input
+        '500':
+          description: Server error during sync
+
+  /sync-daily-market-breadth:
+    post:
+      summary: Sync daily market breadth data
+      description: >
+        Syncs stock counts of daily % moves and 5-day % moves using latest 10 days candle data for instruments,
+        aggregating counts for today by thresholds and updating MarketBreadth.
+      responses:
+        '200':
+          description: Daily market breadth synced successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Invalid or empty stocks input
+        '500':
+          description: Server error during sync
+
+  /sync-daily-all:
+    post:
+      summary: Sync daily EMAs and 52-week high/low updates
+      description: Fetches today's intraday candles and incrementally updates EMAs and 52-week high/low stats for all instruments.
+      responses:
+        '200':
+          description: Process completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          description: Server error during sync
+
+  /stats/all:
+    get:
+      summary: Get all instrument 52-week stats
+      description: Returns a map of instrumentKey to 52-week and EMA stats.
+      responses:
+        '200':
+          description: Successfully retrieved instrument stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/Instrument52WeekStats'
+        '500':
+          description: Server error fetching stats
+
+  /market-breadth:
+    get:
+      summary: Get market breadth data
+      description: Returns daily market breadth counts ordered by date descending.
+      responses:
+        '200':
+          description: Successfully retrieved market breadth
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MarketBreadth'
+        '500':
+          description: Server error fetching market breadth
+
+components:
+  schemas:
+    Instrument52WeekStats:
+      type: object
+      properties:
+        instrumentKey:
+          type: string
+          example: NSE_EQ|RELIANCE
+        tradingsymbol:
+          type: string
+          example: RELIANCE
+        lastSyncDate:
+          type: string
+          format: date
+        fiftyTwoWeekHigh:
+          type: number
+          example: 2500.5
+        fiftyTwoWeekLow:
+          type: number
+          example: 1800.3
+        lastPrice:
+          type: number
+          example: 2300.7
+        ema10:
+          type: number
+          example: 2250.2
+        ema21:
+          type: number
+          example: 2200.9
+        ema50:
+          type: number
+          example: 2100.5
+        avgVolume21d:
+          type: number
+          example: 5200000
+        lastUpdated:
+          type: string
+          format: date-time
+
+    MarketBreadth:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: '2025-09-01'
+        up4Percent:
+          type: integer
+          example: 230
+        down4Percent:
+          type: integer
+          example: 175
+        totalStocks:
+          type: integer
+          example: 400
+        up20Pct5d:
+          type: integer
+          example: 50
+        down20Pct5d:
+          type: integer
+          example: 40

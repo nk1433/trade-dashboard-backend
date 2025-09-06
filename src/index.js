@@ -11,10 +11,14 @@ import {
 } from './utils/index.js';
 import cors from 'cors';
 import MarketBreadth from './schema/marketBreath.js';
+import YAML from 'yamljs';
+import swaggerUi from 'swagger-ui-express';
 
 const app = express();
 app.use(cors())
 app.use(express.json());
+
+const swaggerDocument = YAML.load('./src/swagger.yaml');
 
 app.post('/sync-52week-stats', async (req, res) => {
   const stocks = niftymidsmall400;
@@ -108,10 +112,8 @@ app.post('/sync-52week-marketbreath', async (req, res) => {
 
           if (candles.length === 0) return;
 
-          // Compute 5-day pct changes
           const pctChange5dMap = calculatePctChange5Days(candles);
 
-          // Process each candle for daily 4% breadth
           for (const candle of candles) {
             const date = candle[0].split('T')[0];
             const open = candle[1];
@@ -131,11 +133,9 @@ app.post('/sync-52week-marketbreath', async (req, res) => {
             const dayStats = dateMap.get(date);
             dayStats.total++;
 
-            // 4% breadth counts
             if (pctChange >= 4) dayStats.upCount++;
             else if (pctChange <= -4) dayStats.downCount++;
 
-            // 20% breadth counts over 5 days (if date is in pctChange5dMap)
             const pctChange5d = pctChange5dMap.get(date);
             if (pctChange5d !== undefined) {
               if (pctChange5d >= 20) dayStats.up20Count++;
@@ -147,12 +147,13 @@ app.post('/sync-52week-marketbreath', async (req, res) => {
         }
       }));
 
-      // Wait 10 seconds to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 10000));
     }
 
-    // After processing all batches, upsert daily market breadth stats
     for (const [date, stats] of dateMap.entries()) {
+      // TODO: Add column no.of.stocks which are up by +-25% in quater
+      // TODO: Add column no.of.stocks which are up by +-25% in month
+      // TODO: Add column no.of.stocks which are up by +-13% in 34 days
       await MarketBreadth.upsert({
         date,
         up4Percent: stats.upCount,
@@ -170,17 +171,140 @@ app.post('/sync-52week-marketbreath', async (req, res) => {
   }
 });
 
+app.post('/sync-daily-market-breadth', async (req, res) => {
+  const stocks = niftymidsmall400;
+
+  if (!Array.isArray(stocks) || stocks.length === 0) {
+    return res.status(400).json({ error: 'Invalid or empty stocks input' });
+  }
+
+  const dateMap = new Map();
+
+  try {
+    await sequelize.sync();
+
+    // Get last synced date from MarketBreadth
+    const lastRecord = await MarketBreadth.findOne({
+      order: [['date', 'DESC']],
+    });
+
+    const lastSyncedDate = lastRecord ? moment(lastRecord.date) : null;
+    const todayDate = moment().format("YYYY-MM-DD");
+
+    // Start date is next day after last synced date or fallback to 10 days ago
+    let startDate;
+    if (lastSyncedDate && lastSyncedDate.isValid()) {
+      startDate = lastSyncedDate.add(1, 'days').format("YYYY-MM-DD");
+    } else {
+      startDate = moment().subtract(10, "days").format("YYYY-MM-DD");
+    }
+
+    // If startDate is after today, nothing to sync
+    if (moment(startDate).isAfter(todayDate)) {
+      return res.json({ message: "Market breadth already up-to-date." });
+    }
+
+    const batchSize = 50;
+    const totalBatches = Math.ceil(stocks.length / batchSize);
+
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const batch = stocks.slice(batchIndex * batchSize, (batchIndex + 1) * batchSize);
+
+      await Promise.all(batch.map(async (instrument) => {
+        try {
+          const instrumentKeyEncoded = encodeURIComponent(instrument.instrument_key);
+          const url = `https://api.upstox.com/v3/historical-candle/${instrumentKeyEncoded}/days/1/${todayDate}/${startDate}`;
+          const headers = { Accept: 'application/json' };
+
+          const response = await axios.get(url, { headers });
+          const candles = response.data?.data?.candles || [];
+
+          if (candles.length === 0) return;
+
+          const pctChange5dMap = calculatePctChange5Days(candles.slice(0, 5));
+
+          // Process each candle
+          for (const candle of candles) {
+            const date = candle[0].split('T')[0];
+            const open = candle[1];
+            const close = candle[4];
+            const pctChange = ((close - open) / open) * 100;
+
+            if (!dateMap.has(date)) {
+              dateMap.set(date, {
+                upCount: 0,
+                downCount: 0,
+                total: 0,
+                up20Count: 0,
+                down20Count: 0,
+              });
+            }
+
+            const dayStats = dateMap.get(date);
+            dayStats.total++;
+
+            if (pctChange >= 4) dayStats.upCount++;
+            else if (pctChange <= -4) dayStats.downCount++;
+
+            const pctChange5d = pctChange5dMap.get(date);
+            if (pctChange5d !== undefined) {
+              if (pctChange5d >= 20) dayStats.up20Count++;
+              else if (pctChange5d <= -20) dayStats.down20Count++;
+            }
+          }
+        } catch (e) {
+          console.error(`Failed to process instrument ${instrument.instrument_key}:`, e.message);
+        }
+      }));
+
+      // Optional delay to avoid API limits
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+
+    // Upsert aggregated stats
+    for (const [date, stats] of dateMap.entries()) {
+      await MarketBreadth.upsert({
+        date,
+        up4Percent: stats.upCount,
+        down4Percent: stats.downCount,
+        totalStocks: stats.total,
+        up20Pct5d: stats.up20Count || 0,
+        down20Pct5d: stats.down20Count || 0,
+      });
+    }
+
+    res.json({ message: 'Daily market breadth synced successfully.' });
+  } catch (error) {
+    console.error('Sync error:', error);
+    res.status(500).json({ error: 'Failed to sync daily market breadth.' });
+  }
+});
+
 app.post('/sync-daily-all', async (req, res) => {
   const stocks = niftymidsmall400;
 
   for (const instrument of stocks) {
     try {
+      // Fetch intraday candle for today
       const urlToday = `https://api.upstox.com/v3/historical-candle/intraday/${encodeURIComponent(instrument.instrument_key)}/days/1`;
       const responseToday = await axios.get(urlToday, { headers: { 'Accept': 'application/json' } });
-      const todayCandle = responseToday.data?.data?.candles || [];
+      let todayCandle = responseToday.data?.data?.candles || [];
+
+      // Fallback: if intraday data empty, fetch historical daily candle for last 1 day
       if (todayCandle.length === 0) {
-        console.warn(`No daily candle for ${instrument.instrument_key}`);
-        continue;
+        console.warn(`No intraday candle for ${instrument.instrument_key}, fetching historical daily candle.`);
+
+        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = endDate; // for a single day
+
+        const urlHistorical = `https://api.upstox.com/v3/historical-candle/${encodeURIComponent(instrument.instrument_key)}/days/1/${startDate}/${endDate}`;
+        const responseHistorical = await axios.get(urlHistorical, { headers: { 'Accept': 'application/json' } });
+        todayCandle = responseHistorical.data?.data?.candles || [];
+
+        if (todayCandle.length === 0) {
+          console.warn(`No historical candle available for ${instrument.instrument_key} as fallback.`);
+          continue; // skip this instrument as no data is available
+        }
       }
 
       const closePrice = todayCandle[0][4];
@@ -264,6 +388,8 @@ app.get('/market-breadth', async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve market breadth data' });
   }
 });
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // TODO: Create daily sync endpoint for market breadth
 
