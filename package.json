@@ -27,6 +27,8 @@
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/eslint-parser": "^7.28.4",
     "eslint": "^9.35.0",
     "eslint-plugin-import": "^2.32.0"
   }

@@ -2,6 +2,12 @@ const importPluginImport = (await import("eslint-plugin-import")).default;
 
 export default [
   {
+    "parser": "@babel/eslint-parser",
+    "parserOptions": {
+      "requireConfigFile": false,
+      "ecmaVersion": 2022,
+      "sourceType": "module"
+    },
     files: ["**/*.js"],
     ignores: ["node_modules", "dist", "build"],
     languageOptions: {
