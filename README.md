@@ -28,6 +28,7 @@ This backend service provides APIs and automated processes to fetch, aggregate, 
 ## Upcoming Features / Enhancements (Placeholders)
 
 - [ Ref ] - For daily sync kindly check the syncup already happened or not.
+- [ Ref ] - To reduce Read/Write cost, take the sync locally and import the data directly through mongo compass
 
 
 

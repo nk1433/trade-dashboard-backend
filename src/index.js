@@ -5,8 +5,12 @@ import YAML from "yamljs";
 
 import marketBreadthRouter from "./controller/market-breadth.js";
 import statsRouter from "./controller/stats.js";
+import mongoConnectionInstance from "./database/mongo.js";
 
 const app = express();
+
+await mongoConnectionInstance.connect();
+
 app.use(cors());
 app.use(express.json());
 app.use(marketBreadthRouter);
