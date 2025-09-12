@@ -5,7 +5,7 @@ import axios from "axios";
 import Instrument52WeekStats from "../schema/RDB/instrument52WStats.js";
 import {
     calculateIncrementalEMA, calculate52WeekHighLow,
-    calculateEMA, calculateAverageVolume,
+    calculateEMA, calculateAverageVolume, calculateAverageValueVolume,
 } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 import niftymidsmall400 from '../index/niftymidsmall400.json' with { type: 'json' };
@@ -39,6 +39,7 @@ router.post("/sync-52week-stats", async (req, res) => {
                 }
 
                 const { high, low } = calculate52WeekHighLow(candles);
+                const avgValueVolume21d = calculateAverageValueVolume(candles, 21);
 
                 const ema10 = calculateEMA(candles.slice(-10), 10);
                 const ema21 = calculateEMA(candles.slice(-21), 21);
@@ -58,7 +59,8 @@ router.post("/sync-52week-stats", async (req, res) => {
                     ema50,
                     avgVolume21d,
                     lastUpdated: new Date(),
-                    prevDayVolume: candles[0][5]
+                    prevDayVolume: candles[0][5],
+                    avgValueVolume21d,
                 };
 
                 await dbWrapper.upsertInstrument52WeekStats(data);

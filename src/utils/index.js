@@ -50,3 +50,16 @@ export function calculatePctChange5Days(candles) {
   }
   return pctChangeMap; // Map(date => pctChange over 5 days)
 }
+
+export function calculateAverageValueVolume(candles, days = 21) {
+  if (!candles || candles.length < days) return null;
+  // For each of the last `days` candles: close price * volume
+  let sum = 0;
+  for (let i = 0; i < days; i++) {
+    const candle = candles[i];
+    const close = parseFloat(candle[4]); // Assuming 0=timestamp, 4=close, 5=volume
+    const volume = parseInt(candle[5]);
+    sum += close * volume;
+  }
+  return Math.round(sum / days);
+}

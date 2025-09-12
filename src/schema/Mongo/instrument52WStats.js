@@ -50,6 +50,10 @@ const Instrument52WeekStatsSchema = new mongoose.Schema({
     type: Number,
     default: null,
   },
+  avgValueVolume21d: {
+    type: Number,    // <-- add this new field for avg value of volume
+    default: null,
+  },
 }, {
   collection: 'instrument_52week_stats',
   timestamps: false,

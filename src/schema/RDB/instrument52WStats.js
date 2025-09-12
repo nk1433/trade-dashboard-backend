@@ -14,6 +14,7 @@ const Instrument52WeekStats = sequelize.define('Instrument52WeekStats', {
   lastUpdated: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   avgVolume21d: { type: DataTypes.INTEGER },
   prevDayVolume: { type: DataTypes.INTEGER },
+  avgValueVolume21d: { type: DataTypes.BIGINT },
 }, {
   tableName: 'instrument_52week_stats',
   timestamps: false,

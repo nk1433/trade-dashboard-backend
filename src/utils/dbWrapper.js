@@ -23,6 +23,7 @@ async function upsertInstrument52WeekStats(data) {
         avgVolume21d: data.avgVolume21d,
         lastUpdated: data.lastUpdated || new Date(),
         prevDayVolume: data.prevDayVolume,
+        avgValueVolume21d: data.avgValueVolume21d,
       },
     };
     const options = { upsert: true, new: true };
