@@ -29,6 +29,6 @@ This backend service provides APIs and automated processes to fetch, aggregate, 
 
 - [ Ref ] - For daily sync kindly check the syncup already happened or not.
 - [ Ref ] - To reduce Read/Write cost, take the sync locally and import the data directly through mongo compass
-
-
+- [ Func ] - Add one more column called +-4% moves in last 21 days
+- [ Func ] - Add one more column dollar volume trade value -> closePrice * volume
 
