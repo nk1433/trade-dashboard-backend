@@ -14,6 +14,8 @@ import UserSQL from '../schema/RDB/user.js';
 import UserMongo from '../schema/Mongo/user.js';
 import ChartLayoutSQL from '../schema/RDB/chartLayout.js';
 import ChartLayoutMongo from '../schema/Mongo/chartLayout.js';
+import UserSettingsSQL from '../schema/RDB/userSettings.js';
+import UserSettingsMongo from '../schema/Mongo/userSettings.js';
 import { sequelize } from '../database/index.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -439,6 +441,40 @@ const deleteChartLayout = async (id) => {
     }
   } catch (error) {
     console.error('Error in deleteChartLayout:', error);
+  }
+};
+
+const getUserSettings = async (userId) => {
+  try {
+    if (USE_MONGO) {
+      return await UserSettingsMongo.findOne({ userId }).exec();
+    } else {
+      await sequelize.sync();
+      return await UserSettingsSQL.findOne({ where: { userId } });
+    }
+  } catch (error) {
+    console.error('Error in getUserSettings:', error);
+    return null;
+  }
+};
+
+const upsertUserSettings = async (userId, settings) => {
+  try {
+    if (USE_MONGO) {
+      const query = { userId };
+      const update = { $set: { userId, settings } };
+      const options = { upsert: true, new: true };
+      return await UserSettingsMongo.findOneAndUpdate(query, update, options);
+    } else {
+      await sequelize.sync();
+      const existing = await UserSettingsSQL.findOne({ where: { userId } });
+      if (existing) {
+        return await existing.update({ settings });
+      }
+      return await UserSettingsSQL.create({ userId, settings });
+    }
+  } catch (error) {
+    console.error('Error in upsertUserSettings:', error);
     throw error;
   }
 };
@@ -464,4 +500,6 @@ export default {
   getChartLayouts,
   getChartLayoutById,
   deleteChartLayout,
+  getUserSettings,
+  upsertUserSettings,
 };
