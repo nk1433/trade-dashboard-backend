@@ -449,7 +449,7 @@ const getUserSettings = async (userId) => {
     if (USE_MONGO) {
       return await UserSettingsMongo.findOne({ userId }).exec();
     } else {
-      await sequelize.sync();
+      await sequelize.sync({ alter: true });
       return await UserSettingsSQL.findOne({ where: { userId } });
     }
   } catch (error) {
@@ -466,7 +466,7 @@ const upsertUserSettings = async (userId, settings) => {
       const options = { upsert: true, new: true };
       return await UserSettingsMongo.findOneAndUpdate(query, update, options);
     } else {
-      await sequelize.sync();
+      await sequelize.sync({ alter: true });
       const existing = await UserSettingsSQL.findOne({ where: { userId } });
       if (existing) {
         return await existing.update({ settings });

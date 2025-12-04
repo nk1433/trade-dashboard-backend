@@ -3,7 +3,7 @@ import { sequelize } from '../../database/index.js';
 
 const UserSettings = sequelize.define("UserSettings", {
     userId: {
-        type: DataTypes.STRING,
+        type: DataTypes.INTEGER,
         allowNull: false,
         unique: true,
     },
