@@ -1,5 +1,6 @@
 import express from "express";
 import axios from "axios";
+import moment from "moment";
 import { connectWsUpstoxs } from "../ws/index.js";
 import { intiateAccessTokenReq } from "../ws/utils.js";
 import dbWrapper from "../utils/dbWrapper.js";
@@ -140,13 +141,21 @@ upstoxs.get("/upstoxs/redirect", async (req, res) => {
 
     const data = response.data;
 
+    // Calculate expiry: 3:30 AM today or tomorrow
+    const now = moment();
+    let expiryTime = moment().set({ hour: 3, minute: 30, second: 0, millisecond: 0 });
+
+    if (now.isAfter(expiryTime)) {
+      expiryTime.add(1, 'day');
+    }
+
     await dbWrapper.upsertTokenToDB({
       clientId: config.clientId,
       userId: config.userId,
       upstoxUserId: data.user_id,
       accessToken: data.access_token,
       issuedAt: new Date(),
-      expiresAt: new Date(Date.now() + (data.expires_in || 86400) * 1000)
+      expiresAt: expiryTime.toDate()
     });
 
     connectWsUpstoxs(data.access_token);
