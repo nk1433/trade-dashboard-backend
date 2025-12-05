@@ -33,7 +33,7 @@ const setupCronJobs = () => {
     });
 
     // Schedule task to run at 9:00 AM and 9:15 AM on weekdays (Monday to Friday)
-    cron.schedule('0,15 9 * * 1-5', async () => {
+    cron.schedule('0,10,15 9 * * 1-5', async () => {
         console.log('⏰ Running Upstox token initiation cron job...');
         try {
             await intiateAccessTokenReq();
