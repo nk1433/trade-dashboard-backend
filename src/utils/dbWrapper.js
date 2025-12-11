@@ -16,6 +16,8 @@ import ChartLayoutSQL from '../schema/RDB/chartLayout.js';
 import ChartLayoutMongo from '../schema/Mongo/chartLayout.js';
 import UserSettingsSQL from '../schema/RDB/userSettings.js';
 import UserSettingsMongo from '../schema/Mongo/userSettings.js';
+import PaperTradeSQL from '../schema/RDB/paperTrade.js';
+import PaperTradeMongo from '../schema/Mongo/paperTrade.js';
 import { sequelize } from '../database/index.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -479,6 +481,38 @@ const upsertUserSettings = async (userId, settings) => {
   }
 };
 
+const savePaperTrade = async (data) => {
+  try {
+    if (USE_MONGO) {
+      const trade = new PaperTradeMongo(data);
+      return await trade.save();
+    } else {
+      await sequelize.sync({ alter: true });
+      return await PaperTradeSQL.create(data);
+    }
+  } catch (error) {
+    console.error('Error in savePaperTrade:', error);
+    throw error;
+  }
+};
+
+const getPaperTrades = async (userId) => {
+  try {
+    if (USE_MONGO) {
+      return await PaperTradeMongo.find({ userId }).sort({ timestamp: -1 }).exec();
+    } else {
+      await sequelize.sync({ alter: true });
+      return await PaperTradeSQL.findAll({
+        where: { userId },
+        order: [['timestamp', 'DESC']],
+      });
+    }
+  } catch (error) {
+    console.error('Error in getPaperTrades:', error);
+    return [];
+  }
+};
+
 export default {
   upsertInstrument52WeekStats,
   getAllInstrument52WeekStats,
@@ -502,4 +536,6 @@ export default {
   deleteChartLayout,
   getUserSettings,
   upsertUserSettings,
+  savePaperTrade,
+  getPaperTrades,
 };
