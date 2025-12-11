@@ -1,5 +1,4 @@
-import PaperTrade from '../models/paperTrade.js';
-import PaperPortfolio from '../models/paperPortfolio.js';
+import dbWrapper from '../utils/dbWrapper.js';
 
 export const placeOrder = async (req, res) => {
     try {
@@ -10,9 +9,17 @@ export const placeOrder = async (req, res) => {
         }
 
         // Find or create portfolio
-        let portfolio = await PaperPortfolio.findOne({ userId });
+        let portfolio = await dbWrapper.getPaperPortfolio(userId);
         if (!portfolio) {
-            portfolio = new PaperPortfolio({ userId, capital: 1000000, holdings: [] });
+            portfolio = { userId, capital: 1000000, holdings: [] };
+        } else {
+            // Ensure portfolio is a plain object if needed, or handle Sequelize/Mongoose instance
+            // For simplicity, we'll treat it as an object. 
+            // If it's a Mongoose doc, .toObject() might be needed, but dbWrapper usually returns docs.
+            // If it's Sequelize, .toJSON() might be needed.
+            // However, we can just access properties directly usually.
+            if (portfolio.toJSON) portfolio = portfolio.toJSON();
+            else if (portfolio.toObject) portfolio = portfolio.toObject();
         }
 
         const totalCost = quantity * price;
@@ -26,16 +33,25 @@ export const placeOrder = async (req, res) => {
             portfolio.capital -= totalCost;
 
             // Update holdings
-            const existingHolding = portfolio.holdings.find(h => h.symbol === symbol);
-            if (existingHolding) {
+            // Ensure holdings is an array (Sequelize JSONB might return null if empty)
+            if (!portfolio.holdings) portfolio.holdings = [];
+
+            const existingHoldingIndex = portfolio.holdings.findIndex(h => h.symbol === symbol);
+
+            if (existingHoldingIndex !== -1) {
+                const existingHolding = portfolio.holdings[existingHoldingIndex];
                 const totalQuantity = existingHolding.quantity + quantity;
                 const totalInvested = (existingHolding.quantity * existingHolding.avgPrice) + totalCost;
-                existingHolding.quantity = totalQuantity;
-                existingHolding.avgPrice = totalInvested / totalQuantity;
-                existingHolding.invested = totalInvested;
-                // LTP and other dynamic fields will be updated by frontend or separate market data sync
-                existingHolding.ltp = price;
-                if (sl) existingHolding.sl = sl; // Update SL if provided
+
+                // Update the holding in the array
+                portfolio.holdings[existingHoldingIndex] = {
+                    ...existingHolding,
+                    quantity: totalQuantity,
+                    avgPrice: totalInvested / totalQuantity,
+                    invested: totalInvested,
+                    ltp: price,
+                    sl: sl || existingHolding.sl // Update SL if provided, else keep existing
+                };
             } else {
                 portfolio.holdings.push({
                     symbol,
@@ -54,18 +70,23 @@ export const placeOrder = async (req, res) => {
             return res.status(501).json({ status: 'error', error: 'SELL not implemented yet' });
         }
 
-        await portfolio.save();
+        // Save Portfolio via wrapper
+        await dbWrapper.upsertPaperPortfolio(userId, {
+            capital: portfolio.capital,
+            holdings: portfolio.holdings
+        });
 
-        // Save Trade Record
-        const trade = new PaperTrade({
+        // Save Trade Record via wrapper
+        const tradeData = {
             userId,
             symbol,
             quantity,
             price,
             type,
-            status: 'EXECUTED'
-        });
-        await trade.save();
+            status: 'EXECUTED',
+            timestamp: new Date()
+        };
+        const trade = await dbWrapper.savePaperTrade(tradeData);
 
         res.status(200).json({ status: 'success', data: { trade, portfolio } });
 
@@ -82,7 +103,7 @@ export const getPortfolio = async (req, res) => {
             return res.status(400).json({ status: 'error', error: 'Missing userId' });
         }
 
-        let portfolio = await PaperPortfolio.findOne({ userId });
+        let portfolio = await dbWrapper.getPaperPortfolio(userId);
         if (!portfolio) {
             // Return default if not found
             portfolio = { capital: 1000000, holdings: [] };
@@ -102,7 +123,7 @@ export const getTrades = async (req, res) => {
             return res.status(400).json({ status: 'error', error: 'Missing userId' });
         }
 
-        const trades = await PaperTrade.find({ userId }).sort({ timestamp: -1 });
+        const trades = await dbWrapper.getPaperTrades(userId);
         res.status(200).json({ status: 'success', data: trades });
     } catch (error) {
         console.error('Error fetching trades:', error);

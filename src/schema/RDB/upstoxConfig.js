@@ -20,7 +20,7 @@ const UpstoxConfig = sequelize.define("UpstoxConfig", {
         allowNull: false,
     },
     userId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.STRING,
         allowNull: false,
     },
 }, {

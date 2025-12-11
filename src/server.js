@@ -11,11 +11,29 @@ const server = http.createServer(app);
 setupWebSocket(server);
 setupCronJobs();
 
-server.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-  console.log(`✅ User routes should be available at /api/users`);
-  if (process.env.LOWER_ENV === "false") intiateAccessTokenReq();
-});
+import { sequelize } from "./database/index.js";
+
+// ... existing code ...
+
+const startServer = async () => {
+  try {
+    if (process.env.USE_MONGO !== 'true') {
+      await sequelize.sync({ alter: true });
+      console.log('✅ Database synced');
+    }
+
+    server.listen(PORT, () => {
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`✅ User routes should be available at /api/users`);
+      if (process.env.LOWER_ENV === "false") intiateAccessTokenReq();
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
 
 const gracefulShutdown = (signal) => {
   console.log(`⚠️ Received ${signal}. Closing server...`);

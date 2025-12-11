@@ -18,6 +18,8 @@ import UserSettingsSQL from '../schema/RDB/userSettings.js';
 import UserSettingsMongo from '../schema/Mongo/userSettings.js';
 import PaperTradeSQL from '../schema/RDB/paperTrade.js';
 import PaperTradeMongo from '../schema/Mongo/paperTrade.js';
+import PaperPortfolioSQL from '../schema/RDB/paperPortfolio.js';
+import PaperPortfolioMongo from '../schema/Mongo/paperPortfolio.js';
 import { sequelize } from '../database/index.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -55,8 +57,6 @@ async function upsertInstrument52WeekStats(data) {
       return await Instrument52WeekStatsMongo.findOneAndUpdate(query, update, options);
     } else {
       // Sequelize upsert
-      await sequelize.sync();
-
       return await Instrument52WeekStatsSQL.upsert(data);
     }
   } catch (error) {
@@ -102,7 +102,6 @@ async function upsertMarketBreadth(data) {
       }
     } else {
       // Sequelize upsert logic
-      await sequelize.sync();
       if (Array.isArray(data)) {
         // Sequelize does not have batch upsert, so batch with Promise.all
         return await Promise.all(data.map(doc => MarketBreadthSQL.upsert(doc)));
@@ -120,7 +119,6 @@ async function getAllMarketBreadth() {
     if (USE_MONGO) {
       return await MarketBreadthMongo.find().sort({ date: -1 }).exec();
     } else {
-      await sequelize.sync();
       return await MarketBreadthSQL.findAll({
         order: [["date", "DESC"]],
       });
@@ -158,7 +156,6 @@ async function upsertScans(data) {
         return await ScansMongo.findOneAndUpdate(query, update, options);
       }
     } else {
-      await sequelize.sync();
       if (Array.isArray(data)) {
         return await Promise.all(data.map((doc) => ScansSql.upsert(doc)));
       } else {
@@ -177,7 +174,6 @@ const getTokenFromDB = async () => {
 
       return tokenDocuments?.access_token
     } else {
-      await sequelize.sync();
       const tokenData = await UpstoxTokenSQL.findOne({
         order: [["issuedAt", "DESC"]],
       });
@@ -193,7 +189,6 @@ const getUserToken = async (clientId) => {
     if (USE_MONGO) {
       return await UpstoxsTokenMongo.findOne({ client_id: clientId }).sort({ issued_at: -1 }).exec();
     } else {
-      await sequelize.sync();
       return await UpstoxTokenSQL.findOne({
         where: { clientId },
         order: [["issuedAt", "DESC"]],
@@ -223,7 +218,6 @@ const upsertTokenToDB = async (data) => {
       const options = { upsert: true, new: true };
       return await UpstoxsTokenMongo.findOneAndUpdate(query, update, options);
     } else {
-      await sequelize.sync();
       const userIdStr = String(data.userId);
       const existingToken = await UpstoxTokenSQL.findOne({
         where: { userId: userIdStr },
@@ -250,7 +244,6 @@ const getScans = async (scanType, date) => {
     if (USE_MONGO) {
       return await ScansMongo.find(query).exec();
     } else {
-      await sequelize.sync();
       return await ScansSql.findAll({
         where: query,
         order: [['createdAt', 'DESC']],
@@ -270,7 +263,6 @@ const upsertUpstoxConfig = async (data) => {
       const options = { upsert: true, new: true };
       return await UpstoxConfigMongo.findOneAndUpdate(query, update, options);
     } else {
-      await sequelize.sync();
       const existingConfig = await UpstoxConfigSQL.findOne({
         where: { userId: data.userId }
       });
@@ -291,7 +283,6 @@ const getUpstoxConfigs = async (userId) => {
     if (USE_MONGO) {
       return await UpstoxConfigMongo.find({ userId }).sort({ createdAt: -1 }).exec();
     } else {
-      await sequelize.sync();
       return await UpstoxConfigSQL.findAll({
         where: { userId },
         order: [['createdAt', 'DESC']],
@@ -309,7 +300,6 @@ const getUpstoxConfigById = async (id) => {
     if (USE_MONGO) {
       return await UpstoxConfigMongo.findById(id).exec();
     } else {
-      await sequelize.sync();
       return await UpstoxConfigSQL.findByPk(id);
     }
   } catch (error) {
@@ -323,7 +313,6 @@ const getUpstoxConfigByName = async (name) => {
     if (USE_MONGO) {
       return await UpstoxConfigMongo.findOne({ name }).exec();
     } else {
-      await sequelize.sync();
       return await UpstoxConfigSQL.findOne({ where: { name } });
     }
   } catch (error) {
@@ -338,7 +327,6 @@ const createUser = async (data) => {
       const user = new UserMongo(data);
       return await user.save();
     } else {
-      await sequelize.sync();
       return await UserSQL.create(data);
     }
   } catch (error) {
@@ -352,7 +340,6 @@ const getUserByEmail = async (email) => {
     if (USE_MONGO) {
       return await UserMongo.findOne({ email }).exec();
     } else {
-      await sequelize.sync();
       return await UserSQL.findOne({ where: { email } });
     }
   } catch (error) {
@@ -366,7 +353,6 @@ const getUserById = async (id) => {
     if (USE_MONGO) {
       return await UserMongo.findById(id).exec();
     } else {
-      await sequelize.sync();
       return await UserSQL.findByPk(id);
     }
   } catch (error) {
@@ -383,7 +369,6 @@ const saveChartLayout = async (data) => {
       const options = { upsert: true, new: true };
       return await ChartLayoutMongo.findOneAndUpdate(query, update, options);
     } else {
-      await sequelize.sync();
       const existing = await ChartLayoutSQL.findOne({
         where: { name: data.name, user_id: data.user_id, client_id: data.client_id }
       });
@@ -403,7 +388,6 @@ const getChartLayouts = async (userId, clientId) => {
     if (USE_MONGO) {
       return await ChartLayoutMongo.find({ user_id: userId, client_id: clientId }).select('id name timestamp resolution symbol').exec();
     } else {
-      await sequelize.sync();
       return await ChartLayoutSQL.findAll({
         where: { user_id: userId, client_id: clientId },
         attributes: ['id', 'name', 'timestamp', 'resolution', 'symbol']
@@ -420,7 +404,6 @@ const getChartLayoutById = async (id) => {
     if (USE_MONGO) {
       return await ChartLayoutMongo.findById(id).exec();
     } else {
-      await sequelize.sync();
       return await ChartLayoutSQL.findByPk(id);
     }
   } catch (error) {
@@ -434,7 +417,6 @@ const deleteChartLayout = async (id) => {
     if (USE_MONGO) {
       return await ChartLayoutMongo.findByIdAndDelete(id).exec();
     } else {
-      await sequelize.sync();
       const chart = await ChartLayoutSQL.findByPk(id);
       if (chart) {
         return await chart.destroy();
@@ -451,7 +433,6 @@ const getUserSettings = async (userId) => {
     if (USE_MONGO) {
       return await UserSettingsMongo.findOne({ userId }).exec();
     } else {
-      await sequelize.sync({ alter: true });
       return await UserSettingsSQL.findOne({ where: { userId } });
     }
   } catch (error) {
@@ -468,7 +449,6 @@ const upsertUserSettings = async (userId, settings) => {
       const options = { upsert: true, new: true };
       return await UserSettingsMongo.findOneAndUpdate(query, update, options);
     } else {
-      await sequelize.sync({ alter: true });
       const existing = await UserSettingsSQL.findOne({ where: { userId } });
       if (existing) {
         return await existing.update({ settings });
@@ -487,7 +467,6 @@ const savePaperTrade = async (data) => {
       const trade = new PaperTradeMongo(data);
       return await trade.save();
     } else {
-      await sequelize.sync({ alter: true });
       return await PaperTradeSQL.create(data);
     }
   } catch (error) {
@@ -501,7 +480,6 @@ const getPaperTrades = async (userId) => {
     if (USE_MONGO) {
       return await PaperTradeMongo.find({ userId }).sort({ timestamp: -1 }).exec();
     } else {
-      await sequelize.sync({ alter: true });
       return await PaperTradeSQL.findAll({
         where: { userId },
         order: [['timestamp', 'DESC']],
@@ -510,6 +488,39 @@ const getPaperTrades = async (userId) => {
   } catch (error) {
     console.error('Error in getPaperTrades:', error);
     return [];
+  }
+};
+
+const getPaperPortfolio = async (userId) => {
+  try {
+    if (USE_MONGO) {
+      return await PaperPortfolioMongo.findOne({ userId }).exec();
+    } else {
+      return await PaperPortfolioSQL.findOne({ where: { userId } });
+    }
+  } catch (error) {
+    console.error('Error in getPaperPortfolio:', error);
+    return null;
+  }
+};
+
+const upsertPaperPortfolio = async (userId, data) => {
+  try {
+    if (USE_MONGO) {
+      const query = { userId };
+      const update = { $set: data };
+      const options = { upsert: true, new: true };
+      return await PaperPortfolioMongo.findOneAndUpdate(query, update, options);
+    } else {
+      const existing = await PaperPortfolioSQL.findOne({ where: { userId } });
+      if (existing) {
+        return await existing.update(data);
+      }
+      return await PaperPortfolioSQL.create({ ...data, userId });
+    }
+  } catch (error) {
+    console.error('Error in upsertPaperPortfolio:', error);
+    throw error;
   }
 };
 
@@ -538,4 +549,6 @@ export default {
   upsertUserSettings,
   savePaperTrade,
   getPaperTrades,
+  getPaperPortfolio,
+  upsertPaperPortfolio,
 };
