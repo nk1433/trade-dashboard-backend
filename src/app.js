@@ -28,6 +28,7 @@ connectWsUpstoxs();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(health);
 app.use(marketBreadthRouter);
 app.use(statsRouter);

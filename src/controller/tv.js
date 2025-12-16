@@ -8,6 +8,7 @@ const getCharts = async (req, res) => {
             // Load specific chart
             const chartData = await dbWrapper.getChartLayoutById(chart);
             if (chartData) {
+                res.setHeader('Cache-Control', 'no-store');
                 return res.json({
                     status: "ok",
                     data: JSON.parse(chartData.content)
@@ -18,6 +19,7 @@ const getCharts = async (req, res) => {
         } else {
             // List charts
             const charts = await dbWrapper.getChartLayouts(user, client);
+            res.setHeader('Cache-Control', 'no-store');
             return res.json({
                 status: "ok",
                 data: charts.map(c => ({

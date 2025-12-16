@@ -386,11 +386,15 @@ const saveChartLayout = async (data) => {
 const getChartLayouts = async (userId, clientId) => {
   try {
     if (USE_MONGO) {
-      return await ChartLayoutMongo.find({ user_id: userId, client_id: clientId }).select('id name timestamp resolution symbol').exec();
+      return await ChartLayoutMongo.find({ user_id: userId, client_id: clientId })
+        .sort({ timestamp: -1 })
+        .select('id name timestamp resolution symbol')
+        .exec();
     } else {
       return await ChartLayoutSQL.findAll({
         where: { user_id: userId, client_id: clientId },
-        attributes: ['id', 'name', 'timestamp', 'resolution', 'symbol']
+        attributes: ['id', 'name', 'timestamp', 'resolution', 'symbol'],
+        order: [['timestamp', 'DESC']]
       });
     }
   } catch (error) {
