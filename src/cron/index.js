@@ -5,7 +5,7 @@ import { intiateAccessTokenReq } from '../ws/utils.js';
 
 const setupCronJobs = () => {
     // Schedule task to run at 8:00 AM on weekdays (Monday to Friday)
-    cron.schedule('0 8 * * 1-5', async () => {
+    cron.schedule('0 8 * * 1-6', async () => {
         console.log('⏰ Running 52-week stats sync cron job...');
         try {
             await sync52WeekStats();
@@ -19,7 +19,7 @@ const setupCronJobs = () => {
     });
 
     // Schedule task to run at 9:00 AM on weekdays (Monday to Friday)
-    cron.schedule('0 9 * * 1-5', async () => {
+    cron.schedule('0 9 * * 1-6', async () => {
         console.log('⏰ Running 52-week market breadth sync cron job...');
         try {
             await sync52WeekMarketBreadth();
