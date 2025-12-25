@@ -66,8 +66,47 @@ export const placeOrder = async (req, res) => {
                 });
             }
         } else if (type === 'SELL') {
-            // Implement SELL logic later if needed
-            return res.status(501).json({ status: 'error', error: 'SELL not implemented yet' });
+            if (!portfolio.holdings) portfolio.holdings = [];
+            const existingHoldingIndex = portfolio.holdings.findIndex(h => h.symbol === symbol);
+
+            if (existingHoldingIndex === -1) {
+                return res.status(400).json({ status: 'error', error: 'Holding not found for this symbol' });
+            }
+
+            const existingHolding = portfolio.holdings[existingHoldingIndex];
+
+            if (existingHolding.quantity < quantity) {
+                return res.status(400).json({ status: 'error', error: `Insufficient quantity. You have ${existingHolding.quantity}, trying to sell ${quantity}` });
+            }
+
+            // Calculate details
+            const saleValue = quantity * price;
+            const avgBuyPrice = existingHolding.avgPrice;
+            const realizedPnL = (price - avgBuyPrice) * quantity;
+
+            // Update Capital (Principle + Profit/Loss)
+            portfolio.capital += saleValue;
+
+            // Update Holding
+            const remainingQuantity = existingHolding.quantity - quantity;
+
+            if (remainingQuantity === 0) {
+                // Remove holding if sold out
+                portfolio.holdings.splice(existingHoldingIndex, 1);
+            } else {
+                // Update existing holding
+                // Avg Price remains the same for remaining shares
+                portfolio.holdings[existingHoldingIndex] = {
+                    ...existingHolding,
+                    quantity: remainingQuantity,
+                    invested: remainingQuantity * avgBuyPrice,
+                    ltp: price,
+                    currentValue: remainingQuantity * price, // approximate current value
+                };
+            }
+
+            // Add PnL to the response or tracking if needed
+            // currently just updating capital is enough for the "account" view
         }
 
         // Save Portfolio via wrapper
@@ -107,6 +146,55 @@ export const getPortfolio = async (req, res) => {
         if (!portfolio) {
             // Return default if not found
             portfolio = { capital: 1000000, holdings: [] };
+        } else {
+            if (portfolio.toJSON) portfolio = portfolio.toJSON();
+            else if (portfolio.toObject) portfolio = portfolio.toObject();
+        }
+
+        try {
+            // Update LTP from Stats
+            const stats = await dbWrapper.getAllInstrument52WeekStats();
+            const priceMap = new Map();
+            if (stats && Array.isArray(stats)) {
+                stats.forEach(s => {
+                    const data = s.dataValues || s;
+                    if (data.tradingsymbol && data.lastPrice) {
+                        priceMap.set(data.tradingsymbol, parseFloat(data.lastPrice));
+                    }
+                });
+            }
+
+            if (portfolio.holdings && Array.isArray(portfolio.holdings)) {
+                portfolio.holdings = portfolio.holdings.map(h => {
+                    const currentLtp = priceMap.get(h.symbol) || h.ltp;
+                    if (currentLtp) {
+                        const ltp = parseFloat(currentLtp);
+                        const quantity = h.quantity;
+                        const avgPrice = h.avgPrice;
+                        // Recalculate values
+                        const currentValue = quantity * ltp;
+                        // Invested could be calculated or taken from DB. 
+                        // To be consistent with placeOrder: invested = quantity * avgPrice
+                        // But let's respect existing field if avgPrice integrity is maintained.
+                        // Actually, placeOrder updates 'invested' field.
+                        const invested = h.invested || (quantity * avgPrice);
+                        const pnl = currentValue - invested;
+                        const pnlPercentage = invested > 0 ? (pnl / invested) * 100 : 0;
+
+                        return {
+                            ...h,
+                            ltp,
+                            currentValue,
+                            pnl,
+                            pnlPercentage
+                        };
+                    }
+                    return h;
+                });
+            }
+        } catch (innerError) {
+            console.error('Error updating portfolio LTPs:', innerError);
+            // Non-fatal, return portfolio as is
         }
 
         res.status(200).json({ status: 'success', data: portfolio });
@@ -131,8 +219,49 @@ export const getTrades = async (req, res) => {
     }
 };
 
+export const updateHolding = async (req, res) => {
+    try {
+        const { userId, symbol, sl } = req.body;
+
+        if (!userId || !symbol) {
+            return res.status(400).json({ status: 'error', error: 'Missing required fields' });
+        }
+
+        let portfolio = await dbWrapper.getPaperPortfolio(userId);
+        if (!portfolio || !portfolio.holdings) {
+            return res.status(404).json({ status: 'error', error: 'Portfolio not found' });
+        }
+
+        if (portfolio.toJSON) portfolio = portfolio.toJSON();
+        else if (portfolio.toObject) portfolio = portfolio.toObject();
+
+        const holdingIndex = portfolio.holdings.findIndex(h => h.symbol === symbol);
+        if (holdingIndex === -1) {
+            return res.status(404).json({ status: 'error', error: 'Holding not found' });
+        }
+
+        // Update fields if provided
+        if (sl !== undefined) {
+            portfolio.holdings[holdingIndex].sl = sl;
+        }
+
+        // Save Portfolio via wrapper
+        await dbWrapper.upsertPaperPortfolio(userId, {
+            capital: portfolio.capital,
+            holdings: portfolio.holdings
+        });
+
+        res.status(200).json({ status: 'success', data: portfolio });
+
+    } catch (error) {
+        console.error('Error updating holding:', error);
+        res.status(500).json({ status: 'error', error: error.message });
+    }
+};
+
 export default {
     placeOrder,
     getPortfolio,
-    getTrades
+    getTrades,
+    updateHolding
 };

@@ -41,6 +41,7 @@ app.use("/settings", userSettingsController);
 app.post("/api/paper-trade/place-order", paperTradeController.placeOrder);
 app.get("/api/paper-trade/portfolio", paperTradeController.getPortfolio);
 app.get("/api/paper-trade/trades", paperTradeController.getTrades);
+app.put("/api/paper-trade/holdings", paperTradeController.updateHolding);
 app.get("/api/tv/1.1/charts", tvController.getCharts);
 app.post("/api/tv/1.1/charts", multer().none(), tvController.saveChart);
 app.delete("/api/tv/1.1/charts", tvController.deleteChart);
