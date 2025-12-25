@@ -21,18 +21,28 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
         const latestSyncedDateStr = latestRecords.length > 0 ? latestRecords[0].date : null;
 
         const todayStr = moment().format("YYYY-MM-DD");
-        let startDate;
+        let processingStartDate;
 
         if (latestSyncedDateStr && (fullSync !== true && fullSync !== 'true')) {
             const latestSyncedDate = moment(latestSyncedDateStr);
-            startDate = latestSyncedDate.add(1, "days").format("YYYY-MM-DD");
-            if (moment(startDate).isAfter(todayStr)) {
+            // If the last synced date is today (e.g. partial sync earlier), re-sync today.
+            // Otherwise, start from the next day.
+            if (latestSyncedDate.isSame(moment(todayStr), 'day')) {
+                processingStartDate = todayStr;
+            } else {
+                processingStartDate = latestSyncedDate.add(1, "days").format("YYYY-MM-DD");
+            }
+
+            if (moment(processingStartDate).isAfter(todayStr)) {
                 console.log("Market breadth already up-to-date.");
                 return { message: "Market breadth already up-to-date." };
             }
         } else {
-            startDate = moment().subtract(1, "years").format("YYYY-MM-DD");
+            processingStartDate = moment().subtract(1, "years").format("YYYY-MM-DD");
         }
+
+        // Add buffer for lookback calculations (15 days to ensure we get 5 trading days)
+        const fetchStartDate = moment(processingStartDate).subtract(15, "days").format("YYYY-MM-DD");
 
         const endDate = todayStr;
         const batchSize = 50;
@@ -44,7 +54,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
             await Promise.all(batch.map(async (instrument) => {
                 try {
                     const instrumentKeyEncoded = encodeURIComponent(instrument.instrument_key);
-                    const url = `https://api.upstox.com/v3/historical-candle/${instrumentKeyEncoded}/days/1/${endDate}/${startDate}`;
+                    const url = `https://api.upstox.com/v3/historical-candle/${instrumentKeyEncoded}/days/1/${endDate}/${fetchStartDate}`;
                     const headers = { Accept: "application/json" };
 
                     const response = await axios.get(url, { headers });
@@ -57,6 +67,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
 
                     for (const candle of candles) {
                         const date = candle[0].split("T")[0];
+                        if (date < processingStartDate) continue;
                         const open = candle[1];
                         const high = candle[2];
                         const low = candle[3];
