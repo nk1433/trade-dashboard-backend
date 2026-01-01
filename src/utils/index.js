@@ -31,7 +31,8 @@ export function calculate52WeekHighLow(candles) {
 
 export function calculateAverageVolume(candles, period = 21) {
   if (candles.length < period) return null;
-  const volumes = candles.slice(-period).map(c => c[5]);
+  // Use slice(0, period) because candles are usually sorted Newest -> Oldest (index 0 is today)
+  const volumes = candles.slice(0, period).map(c => c[5]);
   const avg = volumes.reduce((sum, v) => sum + v, 0) / period;
   return Math.round(avg);
 }
@@ -54,6 +55,7 @@ export function calculatePctChange5Days(candles) {
 export function calculateAverageValueVolume(candles, days = 21) {
   if (!candles || candles.length < days) return null;
   // For each of the last `days` candles: close price * volume
+  // Assumes candles are Newest -> Oldest (index 0 is today)
   let sum = 0;
   for (let i = 0; i < days; i++) {
     const candle = candles[i];
@@ -67,8 +69,8 @@ export function calculateAverageValueVolume(candles, days = 21) {
 export function calculateAverageClose(arr) {
   const sumClose = arr.reduce((sum, c) => {
     const closePrice = c[4];
-    
-    return  sum + closePrice;
+
+    return sum + closePrice;
   }, 0);
 
   return sumClose / arr.length;

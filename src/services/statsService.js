@@ -36,9 +36,11 @@ export const sync52WeekStats = async () => {
             const { high, low } = calculate52WeekHighLow(candles);
             const avgValueVolume21d = calculateAverageValueVolume(candles, 21);
 
-            const ema10 = calculateEMA(candles.slice(-10), 10);
-            const ema21 = calculateEMA(candles.slice(-21), 21);
-            const ema50 = calculateEMA(candles.slice(-50), 50);
+            // Candles are Newest -> Oldest.
+            // User requested to remove reverse(), so we treat the array as is.
+            const ema10 = calculateEMA(candles.slice(0, 10), 10);
+            const ema21 = calculateEMA(candles.slice(0, 21), 21);
+            const ema50 = calculateEMA(candles.slice(0, 50), 50);
 
             const avgVolume21d = calculateAverageVolume(candles, 21);
 
