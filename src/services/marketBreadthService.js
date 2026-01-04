@@ -1,12 +1,12 @@
 import axios from "axios";
 import moment from "moment";
-import { sequelize } from "../database/index.js";
 import niftymidsmall400 from "../index/niftymidsmall400.json" with { type: 'json' };
+import niftylargecap from "../index/niftylargecap.json" with { type: 'json' };
 import { calculatePctChange5Days } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 
 export const sync52WeekMarketBreadth = async (fullSync = false) => {
-    const stocks = niftymidsmall400;
+    const stocks = [...niftymidsmall400, ...niftylargecap];
 
     if (!Array.isArray(stocks) || stocks.length === 0) {
         throw new Error("Invalid or empty stocks input");
