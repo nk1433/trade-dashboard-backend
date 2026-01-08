@@ -1,12 +1,11 @@
 import axios from "axios";
 import moment from "moment";
-import niftymidsmall400 from "../index/niftymidsmall400.json" with { type: 'json' };
-import niftylargecap from "../index/niftylargecap.json" with { type: 'json' };
+import universe from "../index/universe.json" with { type: 'json' };
 import { calculatePctChange5Days } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 
 export const sync52WeekMarketBreadth = async (fullSync = false) => {
-    const stocks = [...niftymidsmall400, ...niftylargecap];
+    const stocks = universe;
 
     if (!Array.isArray(stocks) || stocks.length === 0) {
         throw new Error("Invalid or empty stocks input");
@@ -45,7 +44,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
         const fetchStartDate = moment(processingStartDate).subtract(15, "days").format("YYYY-MM-DD");
 
         const endDate = todayStr;
-        const batchSize = 50;
+        const batchSize = 3;
         const totalBatches = Math.ceil(stocks.length / batchSize);
 
         for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
@@ -135,7 +134,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                 }
             }));
 
-            await new Promise(resolve => setTimeout(resolve, 10000));
+            await new Promise(resolve => setTimeout(resolve, 3500));
         }
 
         // Prepare data with new derived columns

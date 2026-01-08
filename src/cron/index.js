@@ -17,9 +17,8 @@ const setupCronJobs = () => {
         scheduled: true,
         timezone: "Asia/Kolkata" // Assuming IST based on user location/context, or default to system time
     });
-
-    // Schedule task to run at 9:00 AM on weekdays (Monday to Friday)
-    cron.schedule('0 9 * * 1-6', async () => {
+    // Schedule task to run at 8:30 AM on weekdays (Monday to Friday)
+    cron.schedule('30 8 * * 1-6', async () => {
         console.log('⏰ Running 52-week market breadth sync cron job...');
         try {
             await sync52WeekMarketBreadth();
@@ -46,7 +45,7 @@ const setupCronJobs = () => {
         timezone: "Asia/Kolkata"
     });
 
-    console.log('✅ Cron jobs scheduled: 52-week stats sync at 8:00 AM, Market Breadth at 9:00 AM, Token Initiation at 9:00 & 9:15 AM Mon-Fri.');
+    console.log('✅ Cron jobs scheduled: 52-week stats sync at 8:00 AM, Market Breadth at 8:30 AM, Token Initiation at 9:00 & 9:15 AM Mon-Fri.');
 };
 
 export default setupCronJobs;
