@@ -71,6 +71,26 @@ const MarketBreadth = sequelize.define('MarketBreadth', {
     type: DataTypes.FLOAT,
     allowNull: false,
     defaultValue: 0
+  },
+  up4PercentRatio: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: 0
+  },
+  down4PercentRatio: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: 0
+  },
+  ratio5d: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: 0
+  },
+  ratio10d: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: 0
   }
 }, {
   tableName: 'market_breadth',

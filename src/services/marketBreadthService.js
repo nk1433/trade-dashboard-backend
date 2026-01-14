@@ -139,29 +139,109 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
 
         // Prepare data with new derived columns
         const breadthDataArray = [];
-        for (const [date, stats] of dateMap.entries()) {
-            const strongCloseUpRatio = stats.upCount > 0 ? stats.strongCloseUpCount / stats.upCount : 0;
-            const strongCloseDownRatio = stats.downCount > 0 ? stats.strongCloseDownCount / stats.downCount : 0;
 
-            // Example composite intent scores (customize your scoring logic)
-            const intentScoreUp = strongCloseUpRatio * stats.strongCloseUpCount;
-            const intentScoreDown = (1 - strongCloseDownRatio) * stats.strongCloseDownCount;
+        // We need historical data to calculate rolling 5d/10d ratios for the new entries.
+        // latestRecords comes from getAllMarketBreadth(), usually sorted by date DESC.
+        const sortedHistory = [...latestRecords].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // 1. Convert new calculations (dateMap) to an array
+        const newEntries = [];
+        for (const [date, stats] of dateMap.entries()) {
+            newEntries.push({
+                date,
+                ...stats,
+                // Basic Ratios
+                up4PercentRatio: stats.total > 0 ? stats.upCount / stats.total : 0,
+                down4PercentRatio: stats.total > 0 ? stats.downCount / stats.total : 0,
+                strongCloseUpRatio: stats.upCount > 0 ? stats.strongCloseUpCount / stats.upCount : 0,
+                strongCloseDownRatio: stats.downCount > 0 ? stats.strongCloseDownCount / stats.downCount : 0,
+            });
+        }
+
+        // Sort new entries by date ascending
+        newEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (newEntries.length === 0) {
+            console.log("No new entries to process.");
+            return { message: "No new data found to sync." };
+        }
+
+        // Helper to get slice of days ending at index i from the combined array
+        const getRollingSum = (arr, currentIndex, param, days) => {
+            let sum = 0;
+            let count = 0;
+            for (let k = 0; k < days; k++) {
+                const idx = currentIndex - k;
+                if (idx >= 0) {
+                    // Handle both mongoose doc vs plain object structure if needed
+                    const item = arr[idx];
+                    // Check if item is a Mongoose document or plain object
+                    const val = item[param] !== undefined ? item[param] : (item._doc && item._doc[param] !== undefined ? item._doc[param] : 0);
+                    sum += Number(val || 0);
+                    count++;
+                }
+            }
+            return sum;
+        };
+
+        // We combine history + newEntries to have a full timeline for lookback
+        // Note: sortedHistory might already contain today if we are re-running. 
+        // Ideally we filter sortedHistory to exclude dates present in newEntries to avoid duplication in lookback.
+        const newDates = new Set(newEntries.map(e => e.date));
+        const cleanHistory = sortedHistory.filter(h => !newDates.has(h.date));
+
+        const contextArray = [...cleanHistory, ...newEntries];
+
+        // We only insert/update the new entries, but we use contextArray for calculation
+        // The new entries start at index: cleanHistory.length
+        for (let i = 0; i < newEntries.length; i++) {
+            const entry = newEntries[i];
+            const contextIndex = cleanHistory.length + i;
+
+            // Rolling 5 Days
+            // Definition: Ratio 5d = (Sum Up4% over last 5 days including today) / (Sum Down4% over last 5 days including today)
+            const sumUp4_5d = getRollingSum(contextArray, contextIndex, 'up4Percent', 5);
+            // Note: DB field is 'up4Percent', in map it is 'upCount'. 
+            // Entry has 'upCount' from map spread, but access via 'up4Percent' standardized in getRollingSum?
+            // Wait, 'entry' has 'upCount' and 'downCount' from stats. 
+            // In DB 'up4Percent' stores the count. 
+            // Standardize entry to have 'up4Percent' property for uniform access if we use that key.
+            // Let's ensure 'entry' has the keys matching DB schema for the helper to work on both history (DB objects) and new entries.
+            entry.up4Percent = entry.upCount;
+            entry.down4Percent = entry.downCount;
+
+            const sumUp4_5d_calc = getRollingSum(contextArray, contextIndex, 'up4Percent', 5);
+            const sumDown4_5d_calc = getRollingSum(contextArray, contextIndex, 'down4Percent', 5);
+
+            const sumUp4_10d_calc = getRollingSum(contextArray, contextIndex, 'up4Percent', 10);
+            const sumDown4_10d_calc = getRollingSum(contextArray, contextIndex, 'down4Percent', 10);
+
+            entry.ratio5d = sumDown4_5d_calc !== 0 ? sumUp4_5d_calc / sumDown4_5d_calc : 0;
+            entry.ratio10d = sumDown4_10d_calc !== 0 ? sumUp4_10d_calc / sumDown4_10d_calc : 0;
+
+            // Intent Scores
+            entry.intentScoreUp = entry.strongCloseUpRatio * entry.strongCloseUpCount;
+            entry.intentScoreDown = (1 - entry.strongCloseDownRatio) * entry.strongCloseDownCount;
 
             breadthDataArray.push({
-                date,
-                up4Percent: stats.upCount,
-                down4Percent: stats.downCount,
-                totalStocks: stats.total,
-                up20Pct5d: stats.up20Count || 0,
-                down20Pct5d: stats.down20Count || 0,
-                up8Pct5d: stats.up8Count5d || 0,
-                down8Pct5d: stats.down8Count5d || 0,
-                strongCloseUpCount: stats.strongCloseUpCount,
-                strongCloseUpRatio,
-                strongCloseDownCount: stats.strongCloseDownCount,
-                strongCloseDownRatio,
-                intentScoreUp,
-                intentScoreDown
+                date: entry.date,
+                up4Percent: entry.upCount,
+                down4Percent: entry.downCount,
+                totalStocks: entry.total,
+                up20Pct5d: entry.up20Count || 0,
+                down20Pct5d: entry.down20Count || 0,
+                up8Pct5d: entry.up8Count5d || 0,
+                down8Pct5d: entry.down8Count5d || 0,
+                strongCloseUpCount: entry.strongCloseUpCount,
+                strongCloseUpRatio: entry.strongCloseUpRatio,
+                strongCloseDownCount: entry.strongCloseDownCount,
+                strongCloseDownRatio: entry.strongCloseDownRatio,
+                intentScoreUp: entry.intentScoreUp,
+                intentScoreDown: entry.intentScoreDown,
+                up4PercentRatio: entry.up4PercentRatio,
+                down4PercentRatio: entry.down4PercentRatio,
+                ratio5d: entry.ratio5d,
+                ratio10d: entry.ratio10d
             });
         }
 

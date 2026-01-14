@@ -70,6 +70,26 @@ const MarketBreadthSchema = new mongoose.Schema({
     type: Number,
     required: true,
     default: 0,
+  },
+  up4PercentRatio: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  down4PercentRatio: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  ratio5d: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  ratio10d: {
+    type: Number,
+    required: false,
+    default: 0,
   }
 }, {
   collection: 'market_breadth',
