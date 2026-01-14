@@ -13,6 +13,14 @@ router.get("/", async (req, res) => {
 
         const scans = await dbWrapper.getScans(scanType, queryDate);
 
+        if (scanType === 'newHigh') {
+            scans.sort((a, b) => {
+                const countA = a.extraData?.newHighCount || 0;
+                const countB = b.extraData?.newHighCount || 0;
+                return countB - countA;
+            });
+        }
+
         res.json({
             status: "success",
             data: scans,
