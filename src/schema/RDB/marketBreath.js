@@ -91,6 +91,11 @@ const MarketBreadth = sequelize.define('MarketBreadth', {
     type: DataTypes.FLOAT,
     allowNull: true,
     defaultValue: 0
+  },
+  up80Pct52WL: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0
   }
 }, {
   tableName: 'market_breadth',

@@ -13,6 +13,20 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
 
     console.log("Starting 52-week market breadth sync...");
 
+    // Fetch 52-week stats to get 52WL for each instrument
+    const all52WStats = await dbWrapper.getAllInstrument52WeekStats();
+    const fiftyTwoWeekLowMap = new Map();
+    if (all52WStats && Array.isArray(all52WStats)) {
+        all52WStats.forEach(stat => {
+            // Handle both Mongoose doc and Sequelize object
+            const instrumentKey = stat.instrumentKey || stat.instrument_key; // Standardize key access
+            const fiftyTwoWeekLow = stat.fiftyTwoWeekLow !== undefined ? parseFloat(stat.fiftyTwoWeekLow.toString()) : null;
+            if (instrumentKey && fiftyTwoWeekLow !== null) {
+                fiftyTwoWeekLowMap.set(instrumentKey, fiftyTwoWeekLow);
+            }
+        });
+    }
+
     const dateMap = new Map();
 
     try {
@@ -85,6 +99,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                                 down8Count5d: 0,
                                 strongCloseUpCount: 0,
                                 strongCloseDownCount: 0,
+                                up80Pct52WL: 0,
                             });
                         }
 
@@ -126,6 +141,14 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                                 dayStats.up8Count5d++;
                             } else if (pctChange5d <= -8) {
                                 dayStats.down8Count5d++;
+                            }
+                        }
+
+                        // Check Up 80% from 52WL
+                        const fiftyTwoWeekLow = fiftyTwoWeekLowMap.get(instrument.instrument_key);
+                        if (fiftyTwoWeekLow && fiftyTwoWeekLow > 0) {
+                            if (close >= fiftyTwoWeekLow * 1.8) {
+                                dayStats.up80Pct52WL++;
                             }
                         }
                     }
@@ -241,7 +264,8 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                 up4PercentRatio: entry.up4PercentRatio,
                 down4PercentRatio: entry.down4PercentRatio,
                 ratio5d: entry.ratio5d,
-                ratio10d: entry.ratio10d
+                ratio10d: entry.ratio10d,
+                up80Pct52WL: entry.up80Pct52WL || 0,
             });
         }
 

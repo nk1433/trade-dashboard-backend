@@ -90,6 +90,11 @@ const MarketBreadthSchema = new mongoose.Schema({
     type: Number,
     required: false,
     default: 0,
+  },
+  up80Pct52WL: {
+    type: Number,
+    required: false,
+    default: 0,
   }
 }, {
   collection: 'market_breadth',
