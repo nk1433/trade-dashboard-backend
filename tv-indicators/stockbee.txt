@@ -6,12 +6,19 @@ indicator("Stockbee signals", overlay=true)
 // ==========================================
 grp_ma = "Moving Average Settings"
 shortLen = input.int(7, "Short MA (avgc7)", group=grp_ma)
-longLen  = input.int(65, "Long MA (avgc65)", group=grp_ma)
+longLen  = input.int(65, "Lonzg MA (avgc65)", group=grp_ma)
 
 grp_ui = "Signal & Visual Settings"
 threshold    = input.float(4.0, "Percentage Threshold", step=0.1, group=grp_ui)
 tightRange   = input.float(0.5, "Tight Bar Range (+/-%)", step=0.1, group=grp_ui)
-showLabels   = input.bool(true, "Show Closing Strength Labels", group=grp_ui)
+
+// --- Expanded Panel Controls ---
+showPanelUp   = input.bool(false, "Show Panel: Up 4% Labels", group=grp_ui)
+showPanelDown = input.bool(false, "Show Panel: Down 4% Labels", group=grp_ui)
+showPanelFade = input.bool(true, "Show Panel: Fadeout Labels", group=grp_ui) // Controls historical fadeout markers
+
+grp_study = "Latest Bar Study"
+showLiveCS = input.bool(true, "Show Live Closing Strength %", group=grp_study)
 
 // ==========================================
 // 2. CORE CALCULATIONS
@@ -44,38 +51,55 @@ upBar = pctChange >= threshold and not threeUpInARow
 // --- Down <= -4% ---
 downBar = pctChange <= -threshold
 
+// --- Fadeout Criteria ---
+// Volume < Prev Volume AND Range < Prev Range
+isFadeoutRaw = (volume < volume[1]) and (barRange < barRange[1])
+
 // --- Tight Persistence (The "Ants") ---
 upOK = (shortMA / longMA >= 1.05) ? 1 : 0
 persistenceUp = ta.sma(upOK, 20) * 100
 showTight = (math.abs(pctChange) <= tightRange) and (persistenceUp > 0)
 
 // ==========================================
-// 4. DYNAMIC SMART ALERT
+// 4. LATEST BAR STUDY (Live CS Only)
+// ==========================================
+var label liveLabel = na
+if showLiveCS and barstate.islast
+    label.delete(liveLabel)
+    lColor = closingStrength >= 70 ? color.green : color.red
+    // Display simple CS% label on the current bar
+    liveLabel := label.new(bar_index, high, 
+         text=str.tostring(math.round(closingStrength, 1)) + "%", 
+         color=lColor, 
+         textcolor=color.white, 
+         style=label.style_label_up, 
+         yloc=yloc.belowbar)
+
+// ==========================================
+// 5. DYNAMIC SMART ALERT
 // ==========================================
 if barstate.isconfirmed
-    string signalType = ""
+    string sigType = ""
     if dollarBO_signal
-        signalType := "Dollar BO"
+        sigType := "Dollar BO"
     else if sltb_signal
-        signalType := "SLTB"
+        sigType := "SLTB"
     else if upBar
-        signalType := "Up 4%"
+        sigType := "Up 4%"
     else if downBar
-        signalType := "Down 4%"
+        sigType := "Down 4%"
 
-    if signalType != ""
-        string alertMsg = "Stockbee signals: " + signalType + "! | " + syminfo.ticker + 
+    if sigType != ""
+        string alertMsg = "Stockbee signals: " + sigType + "! | " + syminfo.ticker + 
              " | Price: " + str.tostring(close) + 
              " | Day Range: " + str.tostring(open) + " to " + str.tostring(close) + 
              " | Volume: " + str.tostring(volume, format.volume)
         
-        // Use freq_once_per_bar_close to ensure it only sends when the candle is finished
         alert(alertMsg, alert.freq_once_per_bar_close)
 
 // ==========================================
-// 2. MANUAL DROPDOWN ALERTS (UI)
+// 6. MANUAL DROPDOWN ALERTS (UI)
 // ==========================================
-// These placeholders {{ticker}}, {{close}}, etc., are filled by TradingView
 msgTemplate = " | {{ticker}} | Price: {{close}} | Vol: {{volume}} | Time: {{time}}"
 
 alertcondition(sltb_signal,     "SLTB Alert",      "SLTB Alert"      + msgTemplate)
@@ -84,10 +108,25 @@ alertcondition(upBar,           "Up 4% Alert",     "Up 4% Alert"     + msgTempla
 alertcondition(downBar,         "Down 4% Alert",   "Down 4% Alert"   + msgTemplate)
 
 // ==========================================
-// 6. VISUAL PLOTTING
+// 7. VISUAL PLOTTING
 // ==========================================
-plotshape(sltb_signal,     title="SLTB",      style=shape.circle,  location=location.belowbar, color=color.blue,   size=size.tiny)
-plotshape(dollarBO_signal, title="Dollar BO", style=shape.diamond, location=location.belowbar, color=color.purple, size=size.tiny)
-plotshape(upBar,           title="Up 4%",     style=shape.circle,  location=location.belowbar, color=color.green,  size=size.tiny)
-plotshape(downBar,         title="Down 4%",   style=shape.circle,  location=location.abovebar, color=color.red,    size=size.tiny)
-plotshape(showTight,       title="Ants",      style=shape.circle,  location=location.belowbar, color=color.orange, size=size.tiny)
+// Core Shapes (Always on if condition is met)
+plotshape(sltb_signal,     title="SLTB",      style=shape.circle,     location=location.belowbar, color=color.blue,   size=size.tiny)
+plotshape(dollarBO_signal, title="Dollar BO", style=shape.diamond,    location=location.belowbar, color=color.purple, size=size.tiny)
+plotshape(showTight,       title="Ants",      style=shape.circle,     location=location.belowbar, color=color.orange, size=size.tiny)
+
+// --- CONDITIONAL PANELS (Visuals binded to inputs) ---
+
+// 1. Up 4% Panel (Green Circle + Label)
+plotshape(upBar, title="Up 4%", style=shape.circle, location=location.belowbar, color=color.green, size=size.tiny)
+if showPanelUp and upBar and not barstate.islast
+    label.new(bar_index, low, str.tostring(math.round(closingStrength, 1)) + "%", yloc=yloc.belowbar, style=label.style_label_up, color=color.new(color.green, 0), textcolor=color.white, size=size.small)
+
+// 2. Down 4% Panel (Red Circle + Label)
+plotshape(downBar, title="Down 4%", style=shape.circle, location=location.belowbar, color=color.red, size=size.tiny)
+if showPanelDown and downBar and not barstate.islast
+    label.new(bar_index, high, str.tostring(math.round(closingStrength, 1)) + "%", yloc=yloc.abovebar, style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+
+// 3. Fadeout Panel (Yellow Triangle)
+// Only shows if checkbox is checked AND fadeout condition is met
+plotshape(showPanelFade and isFadeoutRaw, title="Fadeout", style=shape.triangleup, location=location.belowbar, color=color.yellow, size=size.tiny)
