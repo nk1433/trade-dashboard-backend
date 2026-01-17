@@ -20,6 +20,8 @@ import PaperTradeSQL from '../schema/RDB/paperTrade.js';
 import PaperTradeMongo from '../schema/Mongo/paperTrade.js';
 import PaperPortfolioSQL from '../schema/RDB/paperPortfolio.js';
 import PaperPortfolioMongo from '../schema/Mongo/paperPortfolio.js';
+import AlertSQL from '../schema/RDB/alert.js';
+import AlertMongo from '../schema/Mongo/alert.js';
 import { sequelize } from '../database/index.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -528,6 +530,20 @@ const upsertPaperPortfolio = async (userId, data) => {
   }
 };
 
+const saveAlert = async (data) => {
+  try {
+    if (USE_MONGO) {
+      const alert = new AlertMongo(data);
+      return await alert.save();
+    } else {
+      return await AlertSQL.create(data);
+    }
+  } catch (error) {
+    console.error('Error in saveAlert:', error);
+    throw error;
+  }
+};
+
 export default {
   upsertInstrument52WeekStats,
   getAllInstrument52WeekStats,
@@ -555,4 +571,5 @@ export default {
   getPaperTrades,
   getPaperPortfolio,
   upsertPaperPortfolio,
+  saveAlert,
 };

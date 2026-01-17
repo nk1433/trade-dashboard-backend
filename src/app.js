@@ -17,6 +17,8 @@ import userController from "./controller/userController.js";
 import userSettingsController from "./controller/userSettings.js";
 import paperTradeController from "./controller/paperTrade.js";
 import tvController from "./controller/tv.js";
+import alertController from "./controller/alert.js";
+import dbWrapper from "./utils/dbWrapper.js";
 import multer from "multer";
 import dotenv from 'dotenv';
 dotenv.config();
@@ -29,6 +31,7 @@ connectWsUpstoxs();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.text({ type: 'text/plain' })); // Handle plain text bodies
 app.use(health);
 app.use(marketBreadthRouter);
 app.use(statsRouter);
@@ -45,6 +48,8 @@ app.put("/api/paper-trade/holdings", paperTradeController.updateHolding);
 app.get("/api/tv/1.1/charts", tvController.getCharts);
 app.post("/api/tv/1.1/charts", multer().none(), tvController.saveChart);
 app.delete("/api/tv/1.1/charts", tvController.deleteChart);
+app.post('/webhook', alertController.processWebhook);
+
 app.post('/auth/callback', upstoxAuth);
 
 const swaggerDocument = YAML.load("./src/swagger.yaml");
