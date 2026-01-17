@@ -1,0 +1,93 @@
+//@version=6
+indicator("Stockbee signals", overlay=true)
+
+// ==========================================
+// 1. INPUTS & SETTINGS
+// ==========================================
+grp_ma = "Moving Average Settings"
+shortLen = input.int(7, "Short MA (avgc7)", group=grp_ma)
+longLen  = input.int(65, "Long MA (avgc65)", group=grp_ma)
+
+grp_ui = "Signal & Visual Settings"
+threshold    = input.float(4.0, "Percentage Threshold", step=0.1, group=grp_ui)
+tightRange   = input.float(0.5, "Tight Bar Range (+/-%)", step=0.1, group=grp_ui)
+showLabels   = input.bool(true, "Show Closing Strength Labels", group=grp_ui)
+
+// ==========================================
+// 2. CORE CALCULATIONS
+// ==========================================
+pctChange = (close - close[1]) / close[1] * 100
+barRange  = high - low
+closingStrength = barRange != 0 ? (close - low) / barRange * 100 : na
+
+shortMA = ta.sma(close, shortLen)
+longMA  = ta.sma(close, longLen)
+volCondition = ta.lowest(volume[1], 3) >= 100000
+
+// ==========================================
+// 3. SIGNAL LOGIC
+// ==========================================
+
+// --- SLTB / Trend Intensity ---
+ti_maCondition  = shortMA / longMA >= 1.05
+ti_bullishBar   = close > open and close > close[1]
+ti_acceleration = (close / close[1] > close[1] / close[2]) and (close[1] / close[2] < 1.02)
+sltb_signal     = volCondition and (close >= 25) and ti_maCondition and ti_bullishBar and ti_acceleration
+
+// --- Dollar BO ($50+ move) ---
+dollarBO_signal = (close - open >= 50) and (volume > 100000)
+
+// --- Up >= 4% ---
+threeUpInARow = close[1] > close[2] and close[2] > close[3] and close[3] > close[4]
+upBar = pctChange >= threshold and not threeUpInARow
+
+// --- Down <= -4% ---
+downBar = pctChange <= -threshold
+
+// --- Tight Persistence (The "Ants") ---
+upOK = (shortMA / longMA >= 1.05) ? 1 : 0
+persistenceUp = ta.sma(upOK, 20) * 100
+showTight = (math.abs(pctChange) <= tightRange) and (persistenceUp > 0)
+
+// ==========================================
+// 4. DYNAMIC SMART ALERT
+// ==========================================
+if barstate.isconfirmed
+    string signalType = ""
+    if dollarBO_signal
+        signalType := "Dollar BO"
+    else if sltb_signal
+        signalType := "SLTB"
+    else if upBar
+        signalType := "Up 4%"
+    else if downBar
+        signalType := "Down 4%"
+
+    if signalType != ""
+        string alertMsg = "Stockbee signals: " + signalType + "! | " + syminfo.ticker + 
+             " | Price: " + str.tostring(close) + 
+             " | Day Range: " + str.tostring(open) + " to " + str.tostring(close) + 
+             " | Volume: " + str.tostring(volume, format.volume)
+        
+        // Use freq_once_per_bar_close to ensure it only sends when the candle is finished
+        alert(alertMsg, alert.freq_once_per_bar_close)
+
+// ==========================================
+// 2. MANUAL DROPDOWN ALERTS (UI)
+// ==========================================
+// These placeholders {{ticker}}, {{close}}, etc., are filled by TradingView
+msgTemplate = " | {{ticker}} | Price: {{close}} | Vol: {{volume}} | Time: {{time}}"
+
+alertcondition(sltb_signal,     "SLTB Alert",      "SLTB Alert"      + msgTemplate)
+alertcondition(dollarBO_signal, "Dollar BO Alert", "Dollar BO Alert" + msgTemplate)
+alertcondition(upBar,           "Up 4% Alert",     "Up 4% Alert"     + msgTemplate)
+alertcondition(downBar,         "Down 4% Alert",   "Down 4% Alert"   + msgTemplate)
+
+// ==========================================
+// 6. VISUAL PLOTTING
+// ==========================================
+plotshape(sltb_signal,     title="SLTB",      style=shape.circle,  location=location.belowbar, color=color.blue,   size=size.tiny)
+plotshape(dollarBO_signal, title="Dollar BO", style=shape.diamond, location=location.belowbar, color=color.purple, size=size.tiny)
+plotshape(upBar,           title="Up 4%",     style=shape.circle,  location=location.belowbar, color=color.green,  size=size.tiny)
+plotshape(downBar,         title="Down 4%",   style=shape.circle,  location=location.abovebar, color=color.red,    size=size.tiny)
+plotshape(showTight,       title="Ants",      style=shape.circle,  location=location.belowbar, color=color.orange, size=size.tiny)
