@@ -6,7 +6,7 @@ indicator("Stockbee signals", overlay=true)
 // ==========================================
 grp_ma = "Moving Average Settings"
 shortLen = input.int(7, "Short MA (avgc7)", group=grp_ma)
-longLen  = input.int(65, "Lonzg MA (avgc65)", group=grp_ma)
+longLen  = input.int(65, "Long MA (avgc65)", group=grp_ma)
 
 grp_ui = "Signal & Visual Settings"
 threshold    = input.float(4.0, "Percentage Threshold", step=0.1, group=grp_ui)
@@ -54,11 +54,18 @@ downBar = pctChange <= -threshold
 // --- Fadeout Criteria ---
 // Volume < Prev Volume AND Range < Prev Range
 isFadeoutRaw = (volume < volume[1]) and (barRange < barRange[1])
+bullish_combined = sltb_signal or upBar or dollarBO_signal
 
-// --- Tight Persistence (The "Ants") ---
-upOK = (shortMA / longMA >= 1.05) ? 1 : 0
-persistenceUp = ta.sma(upOK, 20) * 100
-showTight = (math.abs(pctChange) <= tightRange) and (persistenceUp > 0)
+// --- UPDATED ANTS LOGIC (MDT & DTS Variations Included) ---
+// 1. Original TI: avgc7/avgc65 > 1.05
+ti_orig = (shortMA / longMA >= 1.05)
+// 2. MDT: c/avgc126 > 1.19
+ti_mdt  = (close / ta.sma(close, 126) > 1.19)
+// 3. DTS: c/minl252 >= 1.8
+ti_dts  = (close / ta.lowest(low, 252) >= 1.8)
+
+// Matches ANY of the 3 variations + Volume + Tight Range
+showTight = (ti_orig or ti_mdt or ti_dts) and volCondition and (math.abs(pctChange) <= tightRange)
 
 // ==========================================
 // 4. LATEST BAR STUDY (Live CS Only)
@@ -106,6 +113,7 @@ alertcondition(sltb_signal,     "SLTB Alert",      "SLTB Alert"      + msgTempla
 alertcondition(dollarBO_signal, "Dollar BO Alert", "Dollar BO Alert" + msgTemplate)
 alertcondition(upBar,           "Up 4% Alert",     "Up 4% Alert"     + msgTemplate)
 alertcondition(downBar,         "Down 4% Alert",   "Down 4% Alert"   + msgTemplate)
+alertcondition(bullish_combined, "Combined Bullish (SLTB/Up/Dollar)", "Bullish Signal Triggered" + msgTemplate)
 
 // ==========================================
 // 7. VISUAL PLOTTING
@@ -128,5 +136,4 @@ if showPanelDown and downBar and not barstate.islast
     label.new(bar_index, high, str.tostring(math.round(closingStrength, 1)) + "%", yloc=yloc.abovebar, style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
 
 // 3. Fadeout Panel (Yellow Triangle)
-// Only shows if checkbox is checked AND fadeout condition is met
 plotshape(showPanelFade and isFadeoutRaw, title="Fadeout", style=shape.triangleup, location=location.belowbar, color=color.yellow, size=size.tiny)
