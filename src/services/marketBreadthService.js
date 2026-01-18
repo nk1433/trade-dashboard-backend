@@ -1,7 +1,7 @@
 import axios from "axios";
 import moment from "moment";
 import universe from "../index/universe.json" with { type: 'json' };
-import { calculatePctChange5Days } from "../utils/index.js";
+import { calculatePctChange5Days, calculatePriceDiff5Days } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 
 export const sync52WeekMarketBreadth = async (fullSync = false) => {
@@ -77,6 +77,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
 
                     // Assuming calculatePctChange5Days returns Map(date -> 5dPctChange)
                     const pctChange5dMap = calculatePctChange5Days(candles);
+                    const priceDiff5dMap = calculatePriceDiff5Days(candles);
 
                     for (const candle of candles) {
                         const date = candle[0].split("T")[0];
@@ -85,8 +86,18 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                         const high = candle[2];
                         const low = candle[3];
                         const close = candle[4];
-                        const pctChange = ((close - open) / open) * 100;
 
+                        // Stockbee Liquidity Filter:
+                        // 1. Volume > 100,000 SHARES
+                        // 2. Turnover > 20,000,000 INR (approx $250k)
+                        const volume = candle[5]; // Volume is at index 5
+                        const turnover = close * volume;
+
+                        if (volume <= 100000 && turnover <= 20000000) {
+                            continue; // Skip this candle if it doesn't meet liquidity criteria
+                        }
+
+                        const pctChange = ((close - open) / open) * 100;
 
                         if (!dateMap.has(date)) {
                             dateMap.set(date, {
@@ -100,6 +111,8 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                                 strongCloseUpCount: 0,
                                 strongCloseDownCount: 0,
                                 up80Pct52WL: 0,
+                                up50RsCount: 0,
+                                up250Rs5dCount: 0,
                             });
                         }
 
@@ -150,6 +163,17 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                             if (close >= fiftyTwoWeekLow * 1.8) {
                                 dayStats.up80Pct52WL++;
                             }
+                        }
+
+                        // 1. Up 50Rs Count: Close - Open >= 50
+                        if (close - open >= 50) {
+                            dayStats.up50RsCount++;
+                        }
+
+                        // 2. Up 250Rs 5-Day Count: Close - Close(5d) >= 250
+                        const priceDiff5d = priceDiff5dMap.get(date);
+                        if (priceDiff5d !== undefined && priceDiff5d >= 250) {
+                            dayStats.up250Rs5dCount++;
                         }
                     }
                 } catch (e) {
@@ -266,8 +290,12 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                 ratio5d: entry.ratio5d,
                 ratio10d: entry.ratio10d,
                 up80Pct52WL: entry.up80Pct52WL || 0,
+                up50RsCount: entry.up50RsCount || 0,
+                up250Rs5dCount: entry.up250Rs5dCount || 0,
             });
         }
+
+        console.log(breadthDataArray)
 
         await dbWrapper.upsertMarketBreadth(breadthDataArray);
         console.log("52-week breadth sync completed.");

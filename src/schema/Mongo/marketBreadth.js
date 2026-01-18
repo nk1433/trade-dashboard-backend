@@ -95,6 +95,16 @@ const MarketBreadthSchema = new mongoose.Schema({
     type: Number,
     required: false,
     default: 0,
+  },
+  up50RsCount: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  up250Rs5dCount: {
+    type: Number,
+    required: false,
+    default: 0,
   }
 }, {
   collection: 'market_breadth',

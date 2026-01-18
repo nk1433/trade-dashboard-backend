@@ -52,6 +52,21 @@ export function calculatePctChange5Days(candles) {
   return pctChangeMap; // Map(date => pctChange over 5 days)
 }
 
+export function calculatePriceDiff5Days(candles) {
+  // Assumes candles are sorted ascending by date
+  candles.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  const priceDiffMap = new Map();
+
+  for (let i = 5; i < candles.length; i++) {
+    const currentDate = candles[i][0].split('T')[0];
+    const closeToday = candles[i][4];
+    const close5DaysAgo = candles[i - 5][4];
+    const diff = closeToday - close5DaysAgo;
+    priceDiffMap.set(currentDate, diff);
+  }
+  return priceDiffMap;
+}
+
 export function calculateAverageValueVolume(candles, days = 21) {
   if (!candles || candles.length < days) return null;
   // For each of the last `days` candles: close price * volume

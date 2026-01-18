@@ -96,6 +96,16 @@ const MarketBreadth = sequelize.define('MarketBreadth', {
     type: DataTypes.INTEGER,
     allowNull: true,
     defaultValue: 0
+  },
+  up50RsCount: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0
+  },
+  up250Rs5dCount: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0
   }
 }, {
   tableName: 'market_breadth',
