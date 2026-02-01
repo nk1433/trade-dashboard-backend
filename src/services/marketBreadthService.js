@@ -51,7 +51,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                 return { message: "Market breadth already up-to-date." };
             }
         } else {
-            processingStartDate = moment().subtract(1, "years").format("YYYY-MM-DD");
+            processingStartDate = moment().subtract(2, "years").format("YYYY-MM-DD");
         }
 
         // Add buffer for lookback calculations (15 days to ensure we get 5 trading days)
