@@ -15,17 +15,25 @@ tightRange   = input.float(0.5, "Tight Bar Range (+/-%)", step=0.1, group=grp_ui
 // --- Expanded Panel Controls ---
 showPanelUp   = input.bool(false, "Show Panel: Up 4% Labels", group=grp_ui)
 showPanelDown = input.bool(false, "Show Panel: Down 4% Labels", group=grp_ui)
-showPanelFade = input.bool(true, "Show Panel: Fadeout Labels", group=grp_ui) // Controls historical fadeout markers
+showPanelFade = input.bool(true, "Show Panel: Fadeout Labels", group=grp_ui) 
 
 grp_study = "Latest Bar Study"
-showLiveCS = input.bool(true, "Show Live Closing Strength %", group=grp_study)
+showLiveCS = input.bool(true, "Show Live Strength %", group=grp_study)
 
 // ==========================================
 // 2. CORE CALCULATIONS
 // ==========================================
 pctChange = (close - close[1]) / close[1] * 100
 barRange  = high - low
-closingStrength = barRange != 0 ? (close - low) / barRange * 100 : na
+
+// Buying Strength (BS): Close relative to Low
+bsRaw = barRange != 0 ? (close - low) / barRange * 100 : 0
+// Selling Strength (SS): Close relative to High
+ssRaw = barRange != 0 ? (high - close) / barRange * 100 : 0
+
+// Determine which strength to use
+isRedCandle = close < open
+effectiveStrength = isRedCandle ? ssRaw : bsRaw
 
 shortMA = ta.sma(close, shortLen)
 longMA  = ta.sma(close, longLen)
@@ -73,14 +81,23 @@ showTight = (ti_orig or ti_mdt or ti_dts) and volCondition and (math.abs(pctChan
 var label liveLabel = na
 if showLiveCS and barstate.islast
     label.delete(liveLabel)
-    lColor = closingStrength >= 70 ? color.green : color.red
-    // Display simple CS% label on the current bar
-    liveLabel := label.new(bar_index, high, 
-         text=str.tostring(math.round(closingStrength, 1)) + "%", 
-         color=lColor, 
-         textcolor=color.white, 
-         style=label.style_label_up, 
-         yloc=yloc.belowbar)
+    
+    // Color Logic: Red for Selling Strength, Green for Buying Strength
+    color lColor = color.gray
+    if effectiveStrength >= 70
+        lColor := isRedCandle ? color.red : color.green
+    else if effectiveStrength <= 30
+        lColor := color.gray
+
+    string csText = str.tostring(math.round(effectiveStrength)) + "%"
+    
+    // Force Below Bar
+    liveLabel := label.new(bar_index, low, 
+          text=csText, 
+          color=lColor, 
+          textcolor=color.white, 
+          style=label.style_label_up, // Pointing up at the bar
+          yloc=yloc.belowbar)
 
 // ==========================================
 // 5. DYNAMIC SMART ALERT
@@ -114,26 +131,33 @@ alertcondition(dollarBO_signal, "Dollar BO Alert", "Dollar BO Alert" + msgTempla
 alertcondition(upBar,           "Up 4% Alert",     "Up 4% Alert"     + msgTemplate)
 alertcondition(downBar,         "Down 4% Alert",   "Down 4% Alert"   + msgTemplate)
 alertcondition(bullish_combined, "Combined Bullish (SLTB/Up/Dollar)", "Bullish Signal Triggered" + msgTemplate)
+alertcondition(showTight,       "Ants Alert",      "Ants Setup Found" + msgTemplate)
 
 // ==========================================
 // 7. VISUAL PLOTTING
 // ==========================================
-// Core Shapes (Always on if condition is met)
 plotshape(sltb_signal,     title="SLTB",      style=shape.circle,     location=location.belowbar, color=color.blue,   size=size.tiny)
 plotshape(dollarBO_signal, title="Dollar BO", style=shape.diamond,    location=location.belowbar, color=color.purple, size=size.tiny)
 plotshape(showTight,       title="Ants",      style=shape.circle,     location=location.belowbar, color=color.orange, size=size.tiny)
 
-// --- CONDITIONAL PANELS (Visuals binded to inputs) ---
+// --- PANELS (All Labels Below Bar) ---
 
-// 1. Up 4% Panel (Green Circle + Label)
+// 1. Up 4% Panel (Green)
 plotshape(upBar, title="Up 4%", style=shape.circle, location=location.belowbar, color=color.green, size=size.tiny)
 if showPanelUp and upBar and not barstate.islast
-    label.new(bar_index, low, str.tostring(math.round(closingStrength, 1)) + "%", yloc=yloc.belowbar, style=label.style_label_up, color=color.new(color.green, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index, low, str.tostring(math.round(bsRaw)) + "%", 
+         yloc=yloc.belowbar, 
+         style=label.style_label_up, 
+         color=color.green, textcolor=color.white, size=size.small)
 
-// 2. Down 4% Panel (Red Circle + Label)
-plotshape(downBar, title="Down 4%", style=shape.circle, location=location.belowbar, color=color.red, size=size.tiny)
+// 2. Down 4% Panel (Red)
+// Note: Circle stays above for clarity, Label moves below as requested
+plotshape(downBar, title="Down 4%", style=shape.circle, location=location.abovebar, color=color.red, size=size.tiny)
 if showPanelDown and downBar and not barstate.islast
-    label.new(bar_index, high, str.tostring(math.round(closingStrength, 1)) + "%", yloc=yloc.abovebar, style=label.style_label_down, color=color.new(color.red, 0), textcolor=color.white, size=size.small)
+    label.new(bar_index, low, str.tostring(math.round(ssRaw)) + "%", 
+         yloc=yloc.belowbar, 
+         style=label.style_label_up, 
+         color=color.red, textcolor=color.white, size=size.small)
 
 // 3. Fadeout Panel (Yellow Triangle)
 plotshape(showPanelFade and isFadeoutRaw, title="Fadeout", style=shape.triangleup, location=location.belowbar, color=color.yellow, size=size.tiny)
