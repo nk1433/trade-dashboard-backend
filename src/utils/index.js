@@ -67,6 +67,26 @@ export function calculatePriceDiff5Days(candles) {
   return priceDiffMap;
 }
 
+export function calculatePctChangeNDays(candles, days) {
+  // Assumes candles are already sorted or sorting is cheap enough (sorting is done in place usually, but caller might have done it)
+  // To be safe we sort again or rely on caller? 
+  // Let's sort to be safe as other funcs do.
+  candles.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  const pctChangeMap = new Map();
+
+  for (let i = days; i < candles.length; i++) {
+    const currentDate = candles[i][0].split('T')[0];
+    const closeToday = candles[i][4];
+    const closeNDaysAgo = candles[i - days][4];
+    // Avoid division by zero
+    if (closeNDaysAgo !== 0) {
+      const pctChange = ((closeToday - closeNDaysAgo) / closeNDaysAgo) * 100;
+      pctChangeMap.set(currentDate, pctChange);
+    }
+  }
+  return pctChangeMap;
+}
+
 export function calculateAverageValueVolume(candles, days = 21) {
   if (!candles || candles.length < days) return null;
   // For each of the last `days` candles: close price * volume

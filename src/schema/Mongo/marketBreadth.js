@@ -105,6 +105,46 @@ const MarketBreadthSchema = new mongoose.Schema({
     type: Number,
     required: false,
     default: 0,
+  },
+  up25PctQuarter: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  down25PctQuarter: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  up25PctMonth: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  down25PctMonth: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  up50PctMonth: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  down50PctMonth: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  up13Pct34d: {
+    type: Number,
+    required: false,
+    default: 0,
+  },
+  down13Pct34d: {
+    type: Number,
+    required: false,
+    default: 0,
   }
 }, {
   collection: 'market_breadth',

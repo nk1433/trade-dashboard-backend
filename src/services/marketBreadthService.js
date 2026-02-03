@@ -1,7 +1,7 @@
 import axios from "axios";
 import moment from "moment";
 import universe from "../index/universe.json" with { type: 'json' };
-import { calculatePctChange5Days, calculatePriceDiff5Days } from "../utils/index.js";
+import { calculatePctChange5Days, calculatePriceDiff5Days, calculatePctChangeNDays } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 
 export const sync52WeekMarketBreadth = async (fullSync = false) => {
@@ -54,8 +54,8 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
             processingStartDate = moment().subtract(2, "years").format("YYYY-MM-DD");
         }
 
-        // Add buffer for lookback calculations (15 days to ensure we get 5 trading days)
-        const fetchStartDate = moment(processingStartDate).subtract(15, "days").format("YYYY-MM-DD");
+        // Add buffer for lookback calculations (200 days to ensure we get 65 trading days for quarter stats safely)
+        const fetchStartDate = moment(processingStartDate).subtract(200, "days").format("YYYY-MM-DD");
 
         const endDate = todayStr;
         const batchSize = 3;
@@ -78,6 +78,9 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                     // Assuming calculatePctChange5Days returns Map(date -> 5dPctChange)
                     const pctChange5dMap = calculatePctChange5Days(candles);
                     const priceDiff5dMap = calculatePriceDiff5Days(candles);
+                    const pctChangeQuarterMap = calculatePctChangeNDays(candles, 65); // 65 Days (approx Quarter)
+                    const pctChangeMonthMap = calculatePctChangeNDays(candles, 21);   // 21 Days (approx Month)
+                    const pctChange34dMap = calculatePctChangeNDays(candles, 34);     // 34 Days
 
                     for (const candle of candles) {
                         const date = candle[0].split("T")[0];
@@ -113,6 +116,15 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                                 up80Pct52WL: 0,
                                 up50RsCount: 0,
                                 up250Rs5dCount: 0,
+                                // New Metrics
+                                up25PctQuarter: 0,
+                                down25PctQuarter: 0,
+                                up25PctMonth: 0,
+                                down25PctMonth: 0,
+                                up50PctMonth: 0,
+                                down50PctMonth: 0,
+                                up13Pct34d: 0,
+                                down13Pct34d: 0,
                             });
                         }
 
@@ -155,6 +167,30 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                             } else if (pctChange5d <= -8) {
                                 dayStats.down8Count5d++;
                             }
+                        }
+
+                        // Quarter (65 days) Counts
+                        const pctChangeQuarter = pctChangeQuarterMap.get(date);
+                        if (pctChangeQuarter !== undefined) {
+                            if (pctChangeQuarter >= 25) dayStats.up25PctQuarter++;
+                            else if (pctChangeQuarter <= -25) dayStats.down25PctQuarter++;
+                        }
+
+                        // Month (21 days) Counts
+                        const pctChangeMonth = pctChangeMonthMap.get(date);
+                        if (pctChangeMonth !== undefined) {
+                            if (pctChangeMonth >= 25) dayStats.up25PctMonth++;
+                            else if (pctChangeMonth <= -25) dayStats.down25PctMonth++;
+
+                            if (pctChangeMonth >= 50) dayStats.up50PctMonth++;
+                            else if (pctChangeMonth <= -50) dayStats.down50PctMonth++;
+                        }
+
+                        // 34 Days Counts
+                        const pctChange34d = pctChange34dMap.get(date);
+                        if (pctChange34d !== undefined) {
+                            if (pctChange34d >= 13) dayStats.up13Pct34d++;
+                            else if (pctChange34d <= -13) dayStats.down13Pct34d++;
                         }
 
                         // Check Up 80% from 52WL
@@ -292,6 +328,15 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                 up80Pct52WL: entry.up80Pct52WL || 0,
                 up50RsCount: entry.up50RsCount || 0,
                 up250Rs5dCount: entry.up250Rs5dCount || 0,
+                // New Metrics
+                up25PctQuarter: entry.up25PctQuarter || 0,
+                down25PctQuarter: entry.down25PctQuarter || 0,
+                up25PctMonth: entry.up25PctMonth || 0,
+                down25PctMonth: entry.down25PctMonth || 0,
+                up50PctMonth: entry.up50PctMonth || 0,
+                down50PctMonth: entry.down50PctMonth || 0,
+                up13Pct34d: entry.up13Pct34d || 0,
+                down13Pct34d: entry.down13Pct34d || 0,
             });
         }
 
