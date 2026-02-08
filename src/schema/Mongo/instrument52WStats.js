@@ -46,7 +46,7 @@ const Instrument52WeekStatsSchema = new mongoose.Schema({
     type: Number,
     default: null,
   },
-  prevDayVolume: { 
+  prevDayVolume: {
     type: Number,
     default: null,
   },
@@ -56,19 +56,23 @@ const Instrument52WeekStatsSchema = new mongoose.Schema({
   },
 
   // Newly added fields:
-  minVolume3d: { 
+  minVolume3d: {
     type: Number,
     default: null,
   },
-  trendIntensity: { 
+  trendIntensity: {
     type: mongoose.Schema.Types.Decimal128,
     default: null,
   },
-  avgClose126d: { 
+  avgClose126d: {
     type: mongoose.Schema.Types.Decimal128,
     default: null,
   },
-  priceChange: { 
+  priceChange: {
+    type: mongoose.Schema.Types.Decimal128,
+    default: null,
+  },
+  avgClose200d: {
     type: mongoose.Schema.Types.Decimal128,
     default: null,
   },
@@ -90,10 +94,10 @@ const Instrument52WeekStatsSchema = new mongoose.Schema({
 Instrument52WeekStatsSchema.set('toJSON', {
   transform: (doc, ret) => {
     [
-      'ema10', 'ema21', 'ema50', 
-      'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'lastPrice', 
-      'trendIntensity', 'closePrev1', 'closePrev2', 
-      'avgClose126d', 'priceChange',
+      'ema10', 'ema21', 'ema50',
+      'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'lastPrice',
+      'trendIntensity', 'closePrev1', 'closePrev2',
+      'avgClose126d', 'priceChange', 'avgClose200d',
     ].forEach(field => {
       if (ret[field] && ret[field]._bsontype === 'Decimal128') {
         ret[field] = ret[field].toString();
@@ -106,10 +110,10 @@ Instrument52WeekStatsSchema.set('toJSON', {
 Instrument52WeekStatsSchema.set('toObject', {
   transform: (doc, ret) => {
     [
-      'ema10', 'ema21', 'ema50', 
-      'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'lastPrice', 
-      'trendIntensity', 'closePrev1', 'closePrev2', 
-      'avgClose126d', 'priceChange',
+      'ema10', 'ema21', 'ema50',
+      'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'lastPrice',
+      'trendIntensity', 'closePrev1', 'closePrev2',
+      'avgClose126d', 'priceChange', 'avgClose200d',
     ].forEach(field => {
       if (ret[field] && ret[field]._bsontype === 'Decimal128') {
         ret[field] = ret[field].toString();

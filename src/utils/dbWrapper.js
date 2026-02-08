@@ -53,6 +53,7 @@ async function upsertInstrument52WeekStats(data) {
           closePrev2: data.closePrev2,
           avgClose126d: data.avgClose126d,
           priceChange: data.priceChange,
+          avgClose200d: data.avgClose200d,
         },
       };
       const options = { upsert: true, new: true };
