@@ -13,20 +13,20 @@ const genProcessNewHighScan = () => {
     };
 
     const isWithinFirst30Mins = (timestamp) => {
-        const tsDate = new Date(Number(timestamp)); // Local time automatically
+        const tsDate = new Date(Number(timestamp));
 
-        // Market open for that day IN LOCAL TIME
-        const marketOpen = new Date(
-            tsDate.getFullYear(),
-            tsDate.getMonth(),
-            tsDate.getDate(),
-            MARKET_OPEN_HOUR,
-            MARKET_OPEN_MINUTE,
+        // Market open for that day is 9:15 AM IST, which is 3:45 AM UTC
+        const marketOpen = new Date(Date.UTC(
+            tsDate.getUTCFullYear(),
+            tsDate.getUTCMonth(),
+            tsDate.getUTCDate(),
+            3,
+            45,
             0,
             0
-        );
+        ));
 
-        const diffMinutes = (tsDate - marketOpen) / (1000 * 60);
+        const diffMinutes = (tsDate.getTime() - marketOpen.getTime()) / (1000 * 60);
 
         return diffMinutes >= 0 && diffMinutes <= TRACKING_DURATION_MINUTES;
     };
@@ -84,11 +84,12 @@ const genProcessBollarBOScan = () => {
         const close = ohlc.close;
         const volume = ohlc.vol;
 
-        if (close - open >= 50 && volume >= 100000) {
+        if (Math.abs(close - open) >= 50 && volume >= 100000) {
             processedSymbols.add(symbol);
+            const isBullish = close - open >= 50;
             await dbWrapper.upsertScans({
                 symbol,
-                scanType: "dollarBO",
+                scanType: isBullish ? "dollarBO" : "dollarBD",
                 date: new Date().toISOString().slice(0, 10),
                 extraData: {
                     open,
@@ -116,8 +117,13 @@ const get52WeekStatsMap = async () => {
             const key = doc.instrumentKey;
             const lastPrice = doc.lastPrice;
             const tradingSymbol = doc.tradingsymbol;
+            const prevDayVolume = doc.prevDayVolume;
             if (key && lastPrice) {
-                statsCache[key] = { lastPrice: Number(lastPrice.toString()), tradingSymbol };
+                statsCache[key] = { 
+                    lastPrice: Number(lastPrice.toString()), 
+                    tradingSymbol,
+                    prevDayVolume: Number(prevDayVolume?.toString() || 0)
+                };
             }
         });
     } catch (err) {
@@ -141,23 +147,29 @@ const genProcess4PercentBOScan = () => {
         if (!statsData) return;
 
         const prevClose = statsData.lastPrice;
+        const prevVolume = statsData.prevDayVolume;
         if (!prevClose) return;
 
         const currentPrice = ohlc.close;
-        const pctChange = ((currentPrice - prevClose) / prevClose) * 100;
+        const currentVolume = ohlc.vol;
+        const priceRatio = currentPrice / prevClose;
 
-        if (Math.abs(pctChange) >= 4) {
+        const isBullishMB = priceRatio >= 1.04 && currentVolume > prevVolume && currentVolume >= 100000;
+        const isBearishMB = priceRatio <= 0.96 && currentVolume > prevVolume && currentVolume >= 100000;
+
+        if (isBullishMB || isBearishMB) {
             processedSymbols.add(symbol);
+            const pctChange = ((currentPrice - prevClose) / prevClose) * 100;
             await dbWrapper.upsertScans({
                 symbol,
-                scanType: pctChange >= 4 ? "4PercentBO" : "4PercentBD",
+                scanType: isBullishMB ? "4PercentBO" : "4PercentBD",
                 date: new Date().toISOString().slice(0, 10),
                 extraData: {
                     prevClose,
                     currentPrice,
                     pctChange,
                     currentTs,
-                    isBO: pctChange >= 4,
+                    isBO: isBullishMB,
                 },
                 tradingSymbol: statsData.tradingSymbol,
             });
