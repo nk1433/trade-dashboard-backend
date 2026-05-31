@@ -22,6 +22,8 @@ import PaperPortfolioSQL from '../schema/RDB/paperPortfolio.js';
 import PaperPortfolioMongo from '../schema/Mongo/paperPortfolio.js';
 import AlertSQL from '../schema/RDB/alert.js';
 import AlertMongo from '../schema/Mongo/alert.js';
+import SaInsightSQL from '../schema/RDB/saInsight.js';
+import SaInsightMongo from '../schema/Mongo/saInsight.js';
 import { sequelize } from '../database/index.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -546,6 +548,69 @@ const saveAlert = async (data) => {
   }
 };
 
+const getSaInsightByDate = async (date) => {
+  try {
+    if (USE_MONGO) {
+      return await SaInsightMongo.findOne({ date }).exec();
+    } else {
+      return await SaInsightSQL.findOne({ where: { date } });
+    }
+  } catch (error) {
+    console.error('Error in getSaInsightByDate:', error);
+    return null;
+  }
+};
+
+const getAllSaInsights = async () => {
+  try {
+    if (USE_MONGO) {
+      return await SaInsightMongo.find().sort({ date: -1 }).exec();
+    } else {
+      return await SaInsightSQL.findAll({ order: [['date', 'DESC']] });
+    }
+  } catch (error) {
+    console.error('Error in getAllSaInsights:', error);
+    return [];
+  }
+};
+
+const upsertSaInsight = async (data) => {
+  try {
+    if (USE_MONGO) {
+      const query = { date: data.date };
+      const update = { $set: data };
+      const options = { upsert: true, new: true };
+      return await SaInsightMongo.findOneAndUpdate(query, update, options);
+    } else {
+      const existing = await SaInsightSQL.findOne({ where: { date: data.date } });
+      if (existing) {
+        return await existing.update(data);
+      }
+      return await SaInsightSQL.create(data);
+    }
+  } catch (error) {
+    console.error('Error in upsertSaInsight:', error);
+    throw error;
+  }
+};
+
+const deleteSaInsight = async (date) => {
+  try {
+    if (USE_MONGO) {
+      return await SaInsightMongo.findOneAndDelete({ date }).exec();
+    } else {
+      const insight = await SaInsightSQL.findOne({ where: { date } });
+      if (insight) {
+        return await insight.destroy();
+      }
+      return null;
+    }
+  } catch (error) {
+    console.error('Error in deleteSaInsight:', error);
+    throw error;
+  }
+};
+
 export default {
   upsertInstrument52WeekStats,
   getAllInstrument52WeekStats,
@@ -574,4 +639,8 @@ export default {
   getPaperPortfolio,
   upsertPaperPortfolio,
   saveAlert,
+  getSaInsightByDate,
+  getAllSaInsights,
+  upsertSaInsight,
+  deleteSaInsight,
 };

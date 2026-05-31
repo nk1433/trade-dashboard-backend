@@ -146,4 +146,69 @@ router.get("/market-breadth", async (req, res) => {
   }
 });
 
+// Situational Awareness Insights Endpoints
+router.get("/market-breadth/sa-insights", async (req, res) => {
+  try {
+    const insights = await dbWrapper.getAllSaInsights();
+    res.json({
+      status: "success",
+      data: insights
+    });
+  } catch (error) {
+    console.error("Failed to fetch SA insights:", error);
+    res.status(500).json({ error: "Failed to retrieve SA insights" });
+  }
+});
+
+router.post("/market-breadth/sa-insights", async (req, res) => {
+  try {
+    const { 
+      date, bias, exploitPlan, alternativePlan, whatHappening, whyHappening, whatNext, 
+      tradingObjectives, whatCanIDo, winningCharacteristics, setupWorked, setupDidntWork, notes 
+    } = req.body;
+    
+    if (!date) {
+      return res.status(400).json({ error: "Date is required" });
+    }
+
+    const savedInsight = await dbWrapper.upsertSaInsight({
+      date,
+      bias,
+      exploitPlan,
+      alternativePlan,
+      whatHappening,
+      whyHappening,
+      whatNext,
+      tradingObjectives,
+      whatCanIDo,
+      winningCharacteristics,
+      setupWorked,
+      setupDidntWork,
+      notes
+    });
+
+    res.json({
+      status: "success",
+      data: savedInsight
+    });
+  } catch (error) {
+    console.error("Failed to upsert SA insight:", error);
+    res.status(500).json({ error: "Failed to save SA insight" });
+  }
+});
+
+router.delete("/market-breadth/sa-insights/:date", async (req, res) => {
+  try {
+    const { date } = req.params;
+    if (!date) {
+      return res.status(400).json({ error: "Date is required" });
+    }
+    await dbWrapper.deleteSaInsight(date);
+    res.json({ status: "success" });
+  } catch (error) {
+    console.error("Failed to delete SA insight:", error);
+    res.status(500).json({ error: "Failed to delete SA insight" });
+  }
+});
+
 export default router;
