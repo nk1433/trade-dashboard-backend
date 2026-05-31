@@ -1,36 +1,36 @@
 import dbWrapper from "./dbWrapper.js";
 
+//TODO: move this config file
+const MARKET_OPEN_HOUR = 9;
+const MARKET_OPEN_MINUTE = 15;
+const TRACKING_DURATION_MINUTES = 30;
+
+const isWithinFirst30Mins = (timestamp) => {
+    const tsDate = new Date(Number(timestamp));
+
+    // Market open for that day is 9:15 AM IST, which is 3:45 AM UTC
+    const marketOpen = new Date(Date.UTC(
+        tsDate.getUTCFullYear(),
+        tsDate.getUTCMonth(),
+        tsDate.getUTCDate(),
+        3,
+        45,
+        0,
+        0
+    ));
+
+    const diffMinutes = (tsDate.getTime() - marketOpen.getTime()) / (1000 * 60);
+
+    return diffMinutes >= 0 && diffMinutes <= TRACKING_DURATION_MINUTES;
+};
+
 const genProcessNewHighScan = () => {
-    //TODO: move this config file
-    const MARKET_OPEN_HOUR = 9;
-    const MARKET_OPEN_MINUTE = 15;
-    const TRACKING_DURATION_MINUTES = 30;
     const scanStates = {
         newHigh: {
             prevHighs: {},
             newHighCounts: {},
         },
     };
-
-    const isWithinFirst30Mins = (timestamp) => {
-        const tsDate = new Date(Number(timestamp));
-
-        // Market open for that day is 9:15 AM IST, which is 3:45 AM UTC
-        const marketOpen = new Date(Date.UTC(
-            tsDate.getUTCFullYear(),
-            tsDate.getUTCMonth(),
-            tsDate.getUTCDate(),
-            3,
-            45,
-            0,
-            0
-        ));
-
-        const diffMinutes = (tsDate.getTime() - marketOpen.getTime()) / (1000 * 60);
-
-        return diffMinutes >= 0 && diffMinutes <= TRACKING_DURATION_MINUTES;
-    };
-
 
     return async (symbol, ohlc, currentTs) => {
         const { prevHighs, newHighCounts } = scanStates.newHigh;
@@ -83,8 +83,9 @@ const genProcessBollarBOScan = () => {
         const open = ohlc.open;
         const close = ohlc.close;
         const volume = ohlc.vol;
+        const withinFirst30Mins = isWithinFirst30Mins(currentTs)
 
-        if (Math.abs(close - open) >= 50 && volume >= 100000) {
+        if (Math.abs(close - open) >= 50 && volume >= 100000 && withinFirst30Mins) {
             processedSymbols.add(symbol);
             const isBullish = close - open >= 50;
             await dbWrapper.upsertScans({
@@ -156,8 +157,9 @@ const genProcess4PercentBOScan = () => {
 
         const isBullishMB = priceRatio >= 1.04 && currentVolume > prevVolume && currentVolume >= 100000;
         const isBearishMB = priceRatio <= 0.96 && currentVolume > prevVolume && currentVolume >= 100000;
+        const withinFirst30Mins = isWithinFirst30Mins(currentTs)
 
-        if (isBullishMB || isBearishMB) {
+        if (isBullishMB || isBearishMB && withinFirst30Mins) {
             processedSymbols.add(symbol);
             const pctChange = ((currentPrice - prevClose) / prevClose) * 100;
             await dbWrapper.upsertScans({
