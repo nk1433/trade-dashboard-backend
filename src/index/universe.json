@@ -91,19 +91,6 @@
         "sector": "Process Industries"
     },
     {
-        "instrument_key": "NSE_EQ|INE675C01017",
-        "exchange_token": "5142",
-        "tradingsymbol": "CIGNITITEC",
-        "name": "CIGNITI TECHNOLOGIES LTD",
-        "tick_size": 10,
-        "lot_size": 1,
-        "instrument_type": "EQ",
-        "exchange": "NSE",
-        "last_price": 1624,
-        "industry": "Information Technology Services",
-        "sector": "Technology Services"
-    },
-    {
         "instrument_key": "NSE_EQ|INE146L01010",
         "exchange_token": "20936",
         "tradingsymbol": "KIRLOSENG",
@@ -988,7 +975,7 @@
         "sector": "Technology Services"
     },
     {
-        "instrument_key": "NSE_EQ|INE625X01018",
+        "instrument_key": "NSE_EQ|INE625X01026",
         "exchange_token": "9422",
         "tradingsymbol": "SILVERTUC",
         "name": "SILVER TOUCH TECHNO LTD",
@@ -2561,7 +2548,7 @@
         "sector": "Producer Manufacturing"
     },
     {
-        "instrument_key": "NSE_EQ|INE732I01013",
+        "instrument_key": "NSE_EQ|INE732I01021",
         "exchange_token": "324",
         "tradingsymbol": "ANGELONE",
         "name": "ANGEL ONE LIMITED",
@@ -2613,7 +2600,7 @@
         "sector": "Consumer Non-Durables"
     },
     {
-        "instrument_key": "NSE_EQ|INE945H01013",
+        "instrument_key": "NSE_EQ|INE945H01021",
         "exchange_token": "14766",
         "tradingsymbol": "V2RETAIL",
         "name": "V2 RETAIL LIMITED",
