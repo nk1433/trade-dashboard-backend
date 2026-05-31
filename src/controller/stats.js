@@ -86,6 +86,9 @@ router.post("/sync-daily-all", async (req, res) => {
                 ema10,
                 ema21,
                 ema50,
+                avgVolume21d: previousStats?.avgVolume21d,
+                avgVolume1w: previousStats?.avgVolume1w,
+                prevDayVolume: todayCandle[0][5],
                 lastUpdated: new Date()
             };
 

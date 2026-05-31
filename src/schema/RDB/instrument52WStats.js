@@ -13,6 +13,7 @@ const Instrument52WeekStats = sequelize.define('Instrument52WeekStats', {
   ema50: { type: DataTypes.DECIMAL(15, 4) },
   lastUpdated: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   avgVolume21d: { type: DataTypes.INTEGER },
+  avgVolume1w: { type: DataTypes.INTEGER },
   prevDayVolume: { type: DataTypes.INTEGER },
   avgValueVolume21d: { type: DataTypes.BIGINT },
   avgClose126d: { type: DataTypes.DECIMAL(15, 4) },

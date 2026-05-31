@@ -46,6 +46,10 @@ const Instrument52WeekStatsSchema = new mongoose.Schema({
     type: Number,
     default: null,
   },
+  avgVolume1w: {
+    type: Number,
+    default: null,
+  },
   prevDayVolume: {
     type: Number,
     default: null,

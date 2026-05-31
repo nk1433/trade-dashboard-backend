@@ -44,6 +44,7 @@ async function upsertInstrument52WeekStats(data) {
           ema21: data.ema21,
           ema50: data.ema50,
           avgVolume21d: data.avgVolume21d,
+          avgVolume1w: data.avgVolume1w,
           lastUpdated: data.lastUpdated || new Date(),
           prevDayVolume: data.prevDayVolume,
           avgValueVolume21d: data.avgValueVolume21d,

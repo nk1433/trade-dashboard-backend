@@ -43,6 +43,7 @@ export const sync52WeekStats = async () => {
             const ema50 = calculateEMA(candles.slice(0, 50), 50);
 
             const avgVolume21d = calculateAverageVolume(candles, 21);
+            const avgVolume1w = calculateAverageVolume(candles, 5); // 5 trading days = 1 week
 
             const candlesLength = candles.length;
 
@@ -79,6 +80,7 @@ export const sync52WeekStats = async () => {
                 ema21,
                 ema50,
                 avgVolume21d,
+                avgVolume1w,
                 lastUpdated: new Date(),
                 prevDayVolume: candles[0][5],
                 avgValueVolume21d,

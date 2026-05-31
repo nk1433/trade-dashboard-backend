@@ -119,8 +119,8 @@ const get52WeekStatsMap = async () => {
             const tradingSymbol = doc.tradingsymbol;
             const prevDayVolume = doc.prevDayVolume;
             if (key && lastPrice) {
-                statsCache[key] = { 
-                    lastPrice: Number(lastPrice.toString()), 
+                statsCache[key] = {
+                    lastPrice: Number(lastPrice.toString()),
                     tradingSymbol,
                     prevDayVolume: Number(prevDayVolume?.toString() || 0)
                 };
