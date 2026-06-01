@@ -110,3 +110,24 @@ export function calculateAverageClose(arr) {
 
   return sumClose / arr.length;
 }
+
+export function calculateMovingAverageNDays(candles, days) {
+  candles.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  const maMap = new Map();
+
+  let sum = 0;
+  for (let i = 0; i < candles.length; i++) {
+    const currentDate = candles[i][0].split('T')[0];
+    const closeToday = candles[i][4];
+    sum += closeToday;
+
+    if (i >= days) {
+      const closeNDaysAgo = candles[i - days][4];
+      sum -= closeNDaysAgo;
+      maMap.set(currentDate, sum / days);
+    } else if (i === days - 1) {
+      maMap.set(currentDate, sum / days);
+    }
+  }
+  return maMap;
+}

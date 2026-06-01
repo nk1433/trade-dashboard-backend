@@ -55,6 +55,7 @@ export const sync52WeekStats = async () => {
             const closePrev2 = candlesLength > 2 ? candles[2][4] : null;
 
             const avgClose7d = candlesLength >= 7 ? calculateAverageClose(candles.slice(0, 7)) : null;
+            const avgClose21d = candlesLength >= 21 ? calculateAverageClose(candles.slice(0, 21)) : null;
             const avgClose65d = candlesLength >= 65 ? calculateAverageClose(candles.slice(0, 65)) : null;
             const trendIntensity = (avgClose7d !== null && avgClose65d !== null && avgClose65d !== 0)
                 ? avgClose7d / avgClose65d
@@ -90,6 +91,7 @@ export const sync52WeekStats = async () => {
                 closePrev2,
                 avgClose126d,
                 avgClose200d,
+                avgClose21d,
             };
 
             await dbWrapper.upsertInstrument52WeekStats(data);

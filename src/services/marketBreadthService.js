@@ -1,7 +1,7 @@
 import axios from "axios";
 import moment from "moment";
 import universe from "../index/universe.json" with { type: 'json' };
-import { calculatePctChange5Days, calculatePriceDiff5Days, calculatePctChangeNDays } from "../utils/index.js";
+import { calculatePctChange5Days, calculatePriceDiff5Days, calculatePctChangeNDays, calculateMovingAverageNDays } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 
 export const sync52WeekMarketBreadth = async (fullSync = false) => {
@@ -81,6 +81,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                     const pctChangeQuarterMap = calculatePctChangeNDays(candles, 65); // 65 Days (approx Quarter)
                     const pctChangeMonthMap = calculatePctChangeNDays(candles, 21);   // 21 Days (approx Month)
                     const pctChange34dMap = calculatePctChangeNDays(candles, 34);     // 34 Days
+                    const ma21dMap = calculateMovingAverageNDays(candles, 21);        // 21 Days MA
 
                     for (const candle of candles) {
                         const date = candle[0].split("T")[0];
@@ -125,6 +126,9 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                                 down50PctMonth: 0,
                                 up13Pct34d: 0,
                                 down13Pct34d: 0,
+                                // MA Metrics
+                                above21dma: 0,
+                                below21dma: 0,
                             });
                         }
 
@@ -210,6 +214,16 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                         const priceDiff5d = priceDiff5dMap.get(date);
                         if (priceDiff5d !== undefined && priceDiff5d >= 250) {
                             dayStats.up250Rs5dCount++;
+                        }
+
+                        // 3. Above/Below 21d MA
+                        const ma21d = ma21dMap.get(date);
+                        if (ma21d !== undefined) {
+                            if (close > ma21d) {
+                                dayStats.above21dma++;
+                            } else if (close < ma21d) {
+                                dayStats.below21dma++;
+                            }
                         }
                     }
                 } catch (e) {
@@ -337,6 +351,8 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                 down50PctMonth: entry.down50PctMonth || 0,
                 up13Pct34d: entry.up13Pct34d || 0,
                 down13Pct34d: entry.down13Pct34d || 0,
+                above21dma: entry.above21dma || 0,
+                below21dma: entry.below21dma || 0,
             });
         }
 
