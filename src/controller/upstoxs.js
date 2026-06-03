@@ -158,7 +158,7 @@ upstoxs.get("/upstoxs/redirect", async (req, res) => {
       expiresAt: expiryTime.toDate()
     });
 
-    connectWsUpstoxs(data.access_token);
+    // connectWsUpstoxs(data.access_token);
 
     if (process.env.LOWER_ENV === 'true') {
       res.redirect('http://localhost:5173/');
@@ -203,7 +203,7 @@ upstoxs.post("/upstoxs/notifier", async (req, res) => {
   catch (err) {
     console.log('error upsertTokenToDB', err)
   }
-  connectWsUpstoxs(access_token);
+  // connectWsUpstoxs(access_token);
 
   res.status(200).json({ success: true, message: "Access token received" });
 });

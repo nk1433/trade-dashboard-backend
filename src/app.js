@@ -26,7 +26,7 @@ dotenv.config();
 const app = express();
 
 await mongoConnectionInstance.connect();
-connectWsUpstoxs();
+connectWsUpstoxs(process.env.UPSTOXS_ANALYTICS_TOKEN);
 
 app.use(cors());
 app.use(express.json());
