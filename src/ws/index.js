@@ -13,7 +13,8 @@ const instruments = scripts.map((script) => script.instrument_key);
 const niftylargeCaps = niftylargeCap.map((script) => script.instrument_key);
 const stockUniverse = [...instruments, ...niftylargeCaps];
 
-export const connectWsUpstoxs = async (token) => {
+export const connectWsUpstoxs = async () => {
+  const token = process.env.UPSTOXS_ANALYTICS_TOKEN;
   let defaultClient = UpstoxClient.ApiClient.instance;
   const OAUTH2 = defaultClient.authentications["OAUTH2"];
 
@@ -21,7 +22,7 @@ export const connectWsUpstoxs = async (token) => {
     OAUTH2.accessToken = token;
   } else {
     OAUTH2.accessToken = process.env.LOWER_ENV === 'true'
-      ? process.env.VITE_UPSTOXS_ACCESS_KEY
+      ? process.env.UPSTOXS_ANALYTICS_TOKEN
       : await dbWrapper.getTokenFromDB();
   }
 
@@ -62,7 +63,7 @@ export const connectWsUpstoxs = async (token) => {
     if (err.message === "Unexpected server response: 401") {
       console.log('⚠️ Token expired (401). Please re-login to Upstox.');
       if (process.env.LOWER_ENV !== 'true')
-        intiateAccessTokenReq(); // This requires args, disabling for now
+        connectWsUpstoxs(); // This requires args, disabling for now
     }
   });
 
@@ -70,7 +71,7 @@ export const connectWsUpstoxs = async (token) => {
     console.log("Connection closed.", data);
 
     if (process.env.LOWER_ENV !== 'true')
-      intiateAccessTokenReq(); // This requires args, disabling for now
+      connectWsUpstoxs(); // This requires args, disabling for now
   });
 };
 
