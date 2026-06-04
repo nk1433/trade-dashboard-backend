@@ -25,7 +25,8 @@ const isWithinFirst30Mins = (timestamp) => {
 };
 
 const genProcessNewHighScan = () => {
-    const scanStates = {
+    let currentDayStr = null;
+    let scanStates = {
         newHigh: {
             prevHighs: {},
             newHighCounts: {},
@@ -33,6 +34,18 @@ const genProcessNewHighScan = () => {
     };
 
     return async (symbol, ohlc, currentTs) => {
+        const tsDate = new Date(Number(currentTs));
+        const dayStr = tsDate.toISOString().slice(0, 10);
+        if (currentDayStr !== dayStr) {
+            currentDayStr = dayStr;
+            scanStates = {
+                newHigh: {
+                    prevHighs: {},
+                    newHighCounts: {},
+                },
+            };
+        }
+
         const { prevHighs, newHighCounts } = scanStates.newHigh;
         const currentHigh = ohlc.high;
 
@@ -75,9 +88,17 @@ const genProcessNewHighScan = () => {
 };
 
 const genProcessBollarBOScan = () => {
-    const processedSymbols = new Set();
+    let currentDayStr = null;
+    let processedSymbols = new Set();
 
     return async (symbol, ohlc, currentTs) => {
+        const tsDate = new Date(Number(currentTs));
+        const dayStr = tsDate.toISOString().slice(0, 10);
+        if (currentDayStr !== dayStr) {
+            currentDayStr = dayStr;
+            processedSymbols = new Set();
+        }
+
         if (processedSymbols.has(symbol)) return;
 
         const open = ohlc.open;
@@ -136,9 +157,17 @@ const get52WeekStatsMap = async () => {
 };
 
 const genProcess4PercentBOScan = () => {
-    const processedSymbols = new Set();
+    let currentDayStr = null;
+    let processedSymbols = new Set();
 
     return async (symbol, ohlc, currentTs) => {
+        const tsDate = new Date(Number(currentTs));
+        const dayStr = tsDate.toISOString().slice(0, 10);
+        if (currentDayStr !== dayStr) {
+            currentDayStr = dayStr;
+            processedSymbols = new Set();
+        }
+
         if (processedSymbols.has(symbol)) return;
 
         const stats = await get52WeekStatsMap();
