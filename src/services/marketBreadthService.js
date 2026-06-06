@@ -1,11 +1,10 @@
 import axios from "axios";
 import moment from "moment";
-import universe from "../index/universe.json" with { type: 'json' };
 import { calculatePctChange5Days, calculatePriceDiff5Days, calculatePctChangeNDays, calculateMovingAverageNDays } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 
 export const sync52WeekMarketBreadth = async (fullSync = false) => {
-    const stocks = universe;
+    const stocks = await dbWrapper.getUniverse();
 
     if (!Array.isArray(stocks) || stocks.length === 0) {
         throw new Error("Invalid or empty stocks input");
@@ -66,12 +65,64 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
 
             await Promise.all(batch.map(async (instrument) => {
                 try {
-                    const instrumentKeyEncoded = encodeURIComponent(instrument.instrument_key);
-                    const url = `https://api.upstox.com/v3/historical-candle/${instrumentKeyEncoded}/days/1/${endDate}/${fetchStartDate}`;
-                    const headers = { Accept: "application/json" };
+                    let instrumentKeyEncoded = encodeURIComponent(instrument.instrument_key);
+                    let url = `https://api.upstox.com/v3/historical-candle/${instrumentKeyEncoded}/days/1/${endDate}/${fetchStartDate}`;
+                    let headers = { Accept: "application/json" };
 
-                    const response = await axios.get(url, { headers });
-                    const candles = response.data?.data?.candles || [];
+                    let response;
+
+                    try {
+                        response = await axios.get(url, { headers });
+                    } catch (error) {
+                        if (error.response && error.response.status === 400) {
+                            console.warn(`400 Error for ${instrument.tradingsymbol}. Attempting to fetch new instrument key...`);
+                            try {
+                                const analyticsToken = process.env.UPSTOXS_ANALYTICS_TOKEN;
+                                if (!analyticsToken) {
+                                    console.error(`No auth token found. Cannot auto-heal ${instrument.tradingsymbol}`);
+                                    return;
+                                }
+
+                                const searchUrl = `https://api.upstox.com/v2/instruments/search?query=${encodeURIComponent(instrument.tradingsymbol)}&page_number=1&records=20&exchanges=NSE&segments=EQ`;
+                                const searchHeaders = {
+                                    'Content-Type': 'application/json',
+                                    'Accept': 'application/json',
+                                    'Authorization': `Bearer ${analyticsToken}`
+                                };
+
+                                const searchResponse = await axios.get(searchUrl, { headers: searchHeaders });
+                                const searchData = searchResponse.data?.data || [];
+
+                                // Find exact match by trading symbol
+                                const exactMatch = searchData.find(item => item.trading_symbol === instrument.tradingsymbol);
+
+                                if (exactMatch && exactMatch.instrument_key) {
+                                    console.log(`Found new instrument key for ${instrument.tradingsymbol}: ${exactMatch.instrument_key}`);
+
+                                    // Update Database
+                                    const updates = { instrument_key: exactMatch.instrument_key };
+                                    if (exactMatch.tick_size) updates.tick_size = exactMatch.tick_size;
+                                    await dbWrapper.updateInstrumentDetails(instrument.tradingsymbol, updates);
+
+                                    // Retry historical fetch with new key
+                                    instrumentKeyEncoded = encodeURIComponent(exactMatch.instrument_key);
+                                    url = `https://api.upstox.com/v3/historical-candle/${instrumentKeyEncoded}/days/1/${endDate}/${fetchStartDate}`;
+                                    response = await axios.get(url, { headers });
+                                } else {
+                                    console.error(`Could not find new instrument key for ${instrument.tradingsymbol} in search results.`);
+                                    return;
+                                }
+                            } catch (searchError) {
+                                console.error(`Auto-healing failed for ${instrument.tradingsymbol}:`, searchError.message);
+                                return;
+                            }
+                        } else {
+                            console.error(`Error fetching historical data for ${instrument.tradingsymbol}:`, error.message);
+                            return;
+                        }
+                    }
+
+                    const candles = response?.data?.data?.candles || [];
 
                     if (candles.length === 0) return;
 
@@ -226,6 +277,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                             }
                         }
                     }
+
                 } catch (e) {
                     console.error(`Failed to process instrument ${instrument.instrument_key}:`, e.message);
                 }

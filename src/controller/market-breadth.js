@@ -146,6 +146,22 @@ router.get("/market-breadth", async (req, res) => {
   }
 });
 
+router.get("/universe", async (req, res) => {
+  try {
+    const universeData = await dbWrapper.getUniverse();
+    res.json({
+      status: "success",
+      data: universeData,
+      meta: {
+        count: universeData.length
+      }
+    });
+  } catch (error) {
+    console.error("Failed to fetch universe:", error);
+    res.status(500).json({ error: "Failed to retrieve universe data" });
+  }
+});
+
 // Situational Awareness Insights Endpoints
 router.get("/market-breadth/sa-insights", async (req, res) => {
   try {
@@ -162,11 +178,11 @@ router.get("/market-breadth/sa-insights", async (req, res) => {
 
 router.post("/market-breadth/sa-insights", async (req, res) => {
   try {
-    const { 
-      date, bias, exploitPlan, alternativePlan, whatHappening, whyHappening, whatNext, 
-      tradingObjectives, whatCanIDo, winningCharacteristics, setupWorked, setupDidntWork, notes 
+    const {
+      date, bias, exploitPlan, alternativePlan, whatHappening, whyHappening, whatNext,
+      tradingObjectives, whatCanIDo, winningCharacteristics, setupWorked, setupDidntWork, notes
     } = req.body;
-    
+
     if (!date) {
       return res.status(400).json({ error: "Date is required" });
     }

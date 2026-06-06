@@ -24,6 +24,7 @@ import AlertSQL from '../schema/RDB/alert.js';
 import AlertMongo from '../schema/Mongo/alert.js';
 import SaInsightSQL from '../schema/RDB/saInsight.js';
 import SaInsightMongo from '../schema/Mongo/saInsight.js';
+import UniverseMongo from '../schema/Mongo/universe.js';
 import { sequelize } from '../database/index.js';
 import dotenv from 'dotenv';
 dotenv.config();
@@ -611,6 +612,58 @@ const deleteSaInsight = async (date) => {
   }
 };
 
+const getUniverse = async () => {
+  try {
+    if (USE_MONGO) {
+      return await UniverseMongo.find().exec();
+    } else {
+      return [];
+    }
+  } catch (error) {
+    console.error('Error in getUniverse:', error);
+    return [];
+  }
+};
+
+const upsertUniverse = async (data) => {
+  try {
+    if (USE_MONGO) {
+      if (Array.isArray(data)) {
+        // Use bulkWrite for performance instead of Promise.all
+        const bulkOps = data.map(doc => ({
+          updateOne: {
+            filter: { tradingsymbol: doc.tradingsymbol },
+            update: { $set: doc },
+            upsert: true
+          }
+        }));
+        return await UniverseMongo.bulkWrite(bulkOps);
+      } else {
+        const query = { tradingsymbol: data.tradingsymbol };
+        const update = { $set: data };
+        const options = { upsert: true, new: true };
+        return await UniverseMongo.findOneAndUpdate(query, update, options);
+      }
+    }
+  } catch (error) {
+    console.error('Error in upsertUniverse:', error);
+  }
+};
+
+const updateInstrumentDetails = async (tradingSymbol, updates) => {
+  try {
+    if (USE_MONGO) {
+      return await UniverseMongo.findOneAndUpdate(
+        { tradingsymbol: tradingSymbol },
+        { $set: updates },
+        { new: true }
+      );
+    }
+  } catch (error) {
+    console.error('Error in updateInstrumentDetails:', error);
+  }
+};
+
 export default {
   upsertInstrument52WeekStats,
   getAllInstrument52WeekStats,
@@ -643,4 +696,7 @@ export default {
   getAllSaInsights,
   upsertSaInsight,
   deleteSaInsight,
+  getUniverse,
+  upsertUniverse,
+  updateInstrumentDetails,
 };
