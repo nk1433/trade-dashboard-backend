@@ -7,8 +7,11 @@ import niftymidsmall400 from "../index/niftymidsmall400.json" with { type: 'json
 import { calculatePctChange5Days } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 import { sync52WeekMarketBreadth } from "../services/marketBreadthService.js";
+import verifyToken from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+router.use(verifyToken);
 
 router.post("/sync-52week-marketbreath", async (req, res) => {
   const { fullSync } = req.query;

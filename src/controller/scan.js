@@ -1,8 +1,11 @@
 import express from "express";
 import dbWrapper from "../utils/dbWrapper.js";
 import moment from "moment";
+import verifyToken from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+router.use(verifyToken);
 
 router.get("/", async (req, res) => {
     try {

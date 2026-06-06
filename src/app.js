@@ -20,6 +20,7 @@ import tvController from "./controller/tv.js";
 import alertController from "./controller/alert.js";
 import dbWrapper from "./utils/dbWrapper.js";
 import multer from "multer";
+import verifyToken from "./middleware/authMiddleware.js";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -41,13 +42,13 @@ app.use("/api/scans", scanController);
 app.use("/scans", scanCriteriaController);
 app.use("/api/users", userController);
 app.use("/settings", userSettingsController);
-app.post("/api/paper-trade/place-order", paperTradeController.placeOrder);
-app.get("/api/paper-trade/portfolio", paperTradeController.getPortfolio);
-app.get("/api/paper-trade/trades", paperTradeController.getTrades);
-app.put("/api/paper-trade/holdings", paperTradeController.updateHolding);
-app.get("/api/tv/1.1/charts", tvController.getCharts);
-app.post("/api/tv/1.1/charts", multer().none(), tvController.saveChart);
-app.delete("/api/tv/1.1/charts", tvController.deleteChart);
+app.post("/api/paper-trade/place-order", verifyToken, paperTradeController.placeOrder);
+app.get("/api/paper-trade/portfolio", verifyToken, paperTradeController.getPortfolio);
+app.get("/api/paper-trade/trades", verifyToken, paperTradeController.getTrades);
+app.put("/api/paper-trade/holdings", verifyToken, paperTradeController.updateHolding);
+app.get("/api/tv/1.1/charts", verifyToken, tvController.getCharts);
+app.post("/api/tv/1.1/charts", verifyToken, multer().none(), tvController.saveChart);
+app.delete("/api/tv/1.1/charts", verifyToken, tvController.deleteChart);
 app.post('/webhook', alertController.processWebhook);
 
 app.post('/auth/callback', upstoxAuth);

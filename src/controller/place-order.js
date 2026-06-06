@@ -1,7 +1,10 @@
 import express from 'express';
 import axios from 'axios';
+import verifyToken from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+router.use(verifyToken);
 
 router.post('/place-order', async (req, res) => {
     try {
