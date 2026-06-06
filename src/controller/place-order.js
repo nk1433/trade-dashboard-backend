@@ -8,9 +8,9 @@ router.use(verifyToken);
 
 router.post('/place-order', async (req, res) => {
     try {
-        const accessToken = req.headers.authorization; // Expect "Bearer <token>"
+        const accessToken = req.headers['upstox-token']; // Expect "Bearer <token>"
         if (!accessToken) {
-            return res.status(401).json({ error: 'Missing Authorization header' });
+            return res.status(401).json({ error: 'Missing Upstox-Token header' });
         }
 
         const orderPayload = req.body;
