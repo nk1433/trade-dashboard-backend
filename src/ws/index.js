@@ -13,7 +13,7 @@ const instruments = scripts.map((script) => script.instrument_key);
 const niftylargeCaps = niftylargeCap.map((script) => script.instrument_key);
 const stockUniverse = [...instruments, ...niftylargeCaps];
 
-export const connectWsUpstoxs = async () => {
+export const connectWsUpstoxs = async (retryCount = 0) => {
   const token = process.env.UPSTOXS_ANALYTICS_TOKEN;
   let defaultClient = UpstoxClient.ApiClient.instance;
   const OAUTH2 = defaultClient.authentications["OAUTH2"];
@@ -35,7 +35,22 @@ export const connectWsUpstoxs = async () => {
 
   streamer.on("open", () => {
     console.log("✅ WebSocket connected successfully.");
+    retryCount = 0; // Reset retry count on successful connection
   });
+
+  let isReconnecting = false;
+  const handleReconnect = () => {
+    if (isReconnecting) return;
+    isReconnecting = true;
+
+    if (process.env.LOWER_ENV !== 'true') {
+      const delay = 5 * 60 * 1000; // 5 minutes in milliseconds
+      console.log(`⏳ Reconnecting in 5 minutes (Retry ${retryCount + 1})...`);
+      setTimeout(() => {
+        connectWsUpstoxs(retryCount + 1);
+      }, delay);
+    }
+  };
 
   streamer.on("message", async (data) => {
     try {
@@ -62,16 +77,13 @@ export const connectWsUpstoxs = async () => {
     console.error('Upstox MarketDataStreamerV3 error:', err.message);
     if (err.message === "Unexpected server response: 401") {
       console.log('⚠️ Token expired (401). Please re-login to Upstox.');
-      if (process.env.LOWER_ENV !== 'true')
-        connectWsUpstoxs(); // This requires args, disabling for now
+      handleReconnect();
     }
   });
 
   streamer.on("close", (data) => {
     console.log("Connection closed.", data);
-
-    if (process.env.LOWER_ENV !== 'true')
-      connectWsUpstoxs(); // This requires args, disabling for now
+    handleReconnect();
   });
 };
 
