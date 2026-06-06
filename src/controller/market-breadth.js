@@ -11,9 +11,7 @@ import verifyToken from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(verifyToken);
-
-router.post("/sync-52week-marketbreath", async (req, res) => {
+router.post("/sync-52week-marketbreath", verifyToken, async (req, res) => {
   const { fullSync } = req.query;
   try {
     const result = await sync52WeekMarketBreadth(fullSync);
@@ -133,7 +131,7 @@ router.post("/sync-daily-market-breadth", async (req, res) => {
   }
 });
 
-router.get("/market-breadth", async (req, res) => {
+router.get("/market-breadth", verifyToken, async (req, res) => {
   try {
     const breadthData = await dbWrapper.getAllMarketBreadth({
       order: [["date", "DESC"]]
@@ -149,7 +147,7 @@ router.get("/market-breadth", async (req, res) => {
   }
 });
 
-router.get("/universe", async (req, res) => {
+router.get("/universe", verifyToken, async (req, res) => {
   try {
     const universeData = await dbWrapper.getUniverse();
     res.json({
@@ -166,7 +164,7 @@ router.get("/universe", async (req, res) => {
 });
 
 // Situational Awareness Insights Endpoints
-router.get("/market-breadth/sa-insights", async (req, res) => {
+router.get('/market-breadth/sa-insights', verifyToken, async (req, res) => {
   try {
     const insights = await dbWrapper.getAllSaInsights();
     res.json({
@@ -179,7 +177,7 @@ router.get("/market-breadth/sa-insights", async (req, res) => {
   }
 });
 
-router.post("/market-breadth/sa-insights", async (req, res) => {
+router.post('/market-breadth/sa-insights', verifyToken, async (req, res) => {
   try {
     const {
       date, bias, exploitPlan, alternativePlan, whatHappening, whyHappening, whatNext,
@@ -216,7 +214,7 @@ router.post("/market-breadth/sa-insights", async (req, res) => {
   }
 });
 
-router.delete("/market-breadth/sa-insights/:date", async (req, res) => {
+router.delete('/market-breadth/sa-insights/:date', verifyToken, async (req, res) => {
   try {
     const { date } = req.params;
     if (!date) {

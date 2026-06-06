@@ -4,9 +4,7 @@ import verifyToken from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(verifyToken);
-
-router.post('/place-order', async (req, res) => {
+router.post('/place-order', verifyToken, async (req, res) => {
     try {
         const accessToken = req.headers['upstox-token']; // Expect "Bearer <token>"
         if (!accessToken) {

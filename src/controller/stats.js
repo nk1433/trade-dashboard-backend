@@ -102,7 +102,9 @@ router.post("/sync-daily-all", async (req, res) => {
     res.json({ message: "processed successfully." });
 });
 
-router.get("/stats/all", async (req, res) => {
+import verifyToken from "../middleware/authMiddleware.js";
+
+router.get("/stats/all", verifyToken, async (req, res) => {
     try {
         const allStats = await dbWrapper.getAllInstrument52WeekStats();
 
