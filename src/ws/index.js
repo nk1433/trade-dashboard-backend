@@ -26,7 +26,8 @@ export const connectWsUpstoxs = async (retryCount = 0) => {
       : await dbWrapper.getTokenFromDB();
   }
 
-  console.log('🔑 Token retrieved for WebSocket connection:', OAUTH2.accessToken);
+
+  console.log('🔑 Token retrieved for WebSocket connection:', OAUTH2.accessToken.slice(-10));
 
   const streamer = new UpstoxClient.MarketDataStreamerV3(stockUniverse, "full");
 

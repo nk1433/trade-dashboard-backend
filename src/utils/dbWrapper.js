@@ -74,12 +74,10 @@ async function upsertInstrument52WeekStats(data) {
 async function getAllInstrument52WeekStats() {
   try {
     if (USE_MONGO) {
-      console.log('getting')
       // Find all, ordered ascending by instrumentKey
       return await Instrument52WeekStatsMongo.find().sort({ instrumentKey: 1 }).exec();
     } else {
       // Sequelize findAll with order
-      console.log('getting from seq')
       return await Instrument52WeekStatsSQL.findAll({
         order: [['instrument_key', 'ASC']],
       });

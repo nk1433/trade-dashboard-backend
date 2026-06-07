@@ -24,7 +24,6 @@ const startServer = async () => {
 
     server.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
-      console.log(`✅ User routes should be available at /api/users`);
       if (process.env.LOWER_ENV === "false") intiateAccessTokenReq();
     });
   } catch (error) {
