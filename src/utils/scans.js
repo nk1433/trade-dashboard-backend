@@ -5,7 +5,7 @@ const MARKET_OPEN_HOUR = 9;
 const MARKET_OPEN_MINUTE = 15;
 const TRACKING_DURATION_MINUTES = 30;
 
-const isWithinFirst30Mins = (timestamp) => {
+const isWithinFirstNMins = (timestamp, durationMinutes) => {
     const tsDate = new Date(Number(timestamp));
 
     // Market open for that day is 9:15 AM IST, which is 3:45 AM UTC
@@ -21,7 +21,7 @@ const isWithinFirst30Mins = (timestamp) => {
 
     const diffMinutes = (tsDate.getTime() - marketOpen.getTime()) / (1000 * 60);
 
-    return diffMinutes >= 0 && diffMinutes <= TRACKING_DURATION_MINUTES;
+    return diffMinutes >= 0 && diffMinutes <= durationMinutes;
 };
 
 const genProcessNewHighScan = () => {
@@ -49,7 +49,7 @@ const genProcessNewHighScan = () => {
         const { prevHighs, newHighCounts } = scanStates.newHigh;
         const currentHigh = ohlc.high;
 
-        if (!isWithinFirst30Mins(currentTs)) {
+        if (!isWithinFirstNMins(currentTs, TRACKING_DURATION_MINUTES)) {
             //TODO: Terminate the socket connect and intiate via cron or on demand api way.
             return;
         }
@@ -63,23 +63,26 @@ const genProcessNewHighScan = () => {
             }
 
             if (currentHigh > prevHighs[symbol]) {
+                const oldHigh = prevHighs[symbol];
                 prevHighs[symbol] = currentHigh;
                 newHighCounts[symbol] += 1;
 
-                await dbWrapper.upsertScans({
-                    symbol,
-                    scanType: "newHigh",
-                    date: new Date().toISOString().slice(0, 10),
-                    extraData: {
-                        open: ohlc.open,
-                        close: ohlc.close,
-                        low: ohlc.low,
-                        previousHigh: prevHighs[symbol],
-                        newHigh: currentHigh,
-                        newHighCount: newHighCounts[symbol],
-                    },
-                    tradingSymbol: (await get52WeekStatsMap())?.[symbol]?.tradingSymbol,
-                });
+                if (newHighCounts[symbol] >= 40) {
+                    await dbWrapper.upsertScans({
+                        symbol,
+                        scanType: "newHigh",
+                        date: new Date().toISOString().slice(0, 10),
+                        extraData: {
+                            open: ohlc.open,
+                            close: ohlc.close,
+                            low: ohlc.low,
+                            previousHigh: oldHigh,
+                            newHigh: currentHigh,
+                            newHighCount: newHighCounts[symbol],
+                        },
+                        tradingSymbol: (await get52WeekStatsMap())?.[symbol]?.tradingSymbol,
+                    });
+                }
             }
         } catch (error) {
             console.error(`Error processing new high scan for ${symbol}:`, error);
@@ -104,7 +107,7 @@ const genProcessBollarBOScan = () => {
         const open = ohlc.open;
         const close = ohlc.close;
         const volume = ohlc.vol;
-        const withinFirst30Mins = isWithinFirst30Mins(currentTs)
+        const withinFirst30Mins = isWithinFirstNMins(currentTs, TRACKING_DURATION_MINUTES)
 
         if (Math.abs(close - open) >= 50 && volume >= 100000 && withinFirst30Mins) {
             processedSymbols.add(symbol);
@@ -186,7 +189,7 @@ const genProcess4PercentBOScan = () => {
 
         const isBullishMB = priceRatio >= 1.04 && currentVolume > prevVolume && currentVolume >= 100000;
         const isBearishMB = priceRatio <= 0.96 && currentVolume > prevVolume && currentVolume >= 100000;
-        const withinFirst30Mins = isWithinFirst30Mins(currentTs)
+        const withinFirst30Mins = isWithinFirstNMins(currentTs, TRACKING_DURATION_MINUTES)
 
         if (isBullishMB || isBearishMB && withinFirst30Mins) {
             processedSymbols.add(symbol);
