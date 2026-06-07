@@ -26,7 +26,6 @@ export const connectWsUpstoxs = async (retryCount = 0) => {
       : await dbWrapper.getTokenFromDB();
   }
 
-
   console.log('🔑 Token retrieved for WebSocket connection:', OAUTH2.accessToken.slice(-10));
 
   const streamer = new UpstoxClient.MarketDataStreamerV3(stockUniverse, "full");
@@ -53,10 +52,24 @@ export const connectWsUpstoxs = async (retryCount = 0) => {
     }
   };
 
+  let lastPreMarketLogTime = 0;
+
   streamer.on("message", async (data) => {
     try {
       const parsed = JSON.parse(data.toString("utf-8"));
       if (parsed.type !== "live_feed" || !parsed.feeds) return;
+
+      const now = Date.now();
+      const istDate = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+      const isPreMarket = istDate.getHours() === 9 && istDate.getMinutes() >= 0 && istDate.getMinutes() <= 15;
+
+      if (isPreMarket && now - lastPreMarketLogTime > 10000) { // Log once every 10 seconds
+        lastPreMarketLogTime = now;
+        const sampleSymbol = Object.keys(parsed.feeds)[0];
+        if (sampleSymbol) {
+          console.log(`\n[Pre-Market Sample] ${sampleSymbol}:`, JSON.stringify(parsed.feeds[sampleSymbol], null, 2));
+        }
+      }
 
       for (const symbol in parsed.feeds) {
         const feed = parsed.feeds[symbol];
