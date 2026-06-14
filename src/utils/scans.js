@@ -147,7 +147,12 @@ const get52WeekStatsMap = async () => {
                 statsCache[key] = {
                     lastPrice: Number(lastPrice.toString()),
                     tradingSymbol,
-                    prevDayVolume: Number(prevDayVolume?.toString() || 0)
+                    prevDayVolume: Number(prevDayVolume?.toString() || 0),
+                    minVolume3d: Number(doc.minVolume3d?.toString() || 0),
+                    trendIntensity: Number(doc.trendIntensity?.toString() || 0),
+                    closePrev1: Number(doc.closePrev1?.toString() || 0),
+                    closePrev2: Number(doc.closePrev2?.toString() || 0),
+                    avgClose200d: Number(doc.avgClose200d?.toString() || 0)
                 };
             }
         });
@@ -211,14 +216,87 @@ const genProcess4PercentBOScan = () => {
     };
 };
 
-//TODO: Introduce a SLTB BD scan.
+const genProcessSLTBScan = () => {
+    let currentDayStr = null;
+    let processedSymbols = new Set();
+
+    return async (symbol, ohlc, currentTs) => {
+        const tsDate = new Date(Number(currentTs));
+        const dayStr = tsDate.toISOString().slice(0, 10);
+        if (currentDayStr !== dayStr) {
+            currentDayStr = dayStr;
+            processedSymbols = new Set();
+        }
+
+        if (processedSymbols.has(symbol)) return;
+
+        const stats = await get52WeekStatsMap();
+        if (!stats) return;
+
+        const statsData = stats[symbol];
+        if (!statsData) return;
+
+        const { minVolume3d, trendIntensity, closePrev1, closePrev2, avgClose200d } = statsData;
+        const currentClose = ohlc.close;
+        const currentOpen = ohlc.open;
+        const currentHigh = ohlc.high;
+        const currentLow = ohlc.low;
+
+        // Bullish SLTB Conditions
+        const isBullishCondition1 = minVolume3d > 100000 &&
+            trendIntensity >= 1.05 &&
+            currentClose > currentOpen &&
+            currentClose > closePrev1 &&
+            closePrev1 !== 0 && closePrev2 !== 0 &&
+            (currentClose / closePrev1) > (closePrev1 / closePrev2) &&
+            (closePrev1 / closePrev2) < 1.02 &&
+            closePrev1 > closePrev2;
+
+        const isBullishCondition2 = minVolume3d > 100000 &&
+            closePrev1 > closePrev2 &&
+            currentClose > currentOpen &&
+            currentClose > closePrev1 &&
+            closePrev1 !== 0 && closePrev2 !== 0 &&
+            closePrev1 / closePrev2 < 1.02 &&
+            (currentClose / closePrev1) > (closePrev1 / closePrev2) &&
+            currentClose > avgClose200d &&
+            trendIntensity < 1.05;
+
+        const isBullishSLTB = isBullishCondition1 || isBullishCondition2;
+
+        // Bearish SLTB Conditions
+        const isBearishSLTB = closePrev2 !== 0 && closePrev1 !== 0 && currentHigh !== currentLow &&
+            closePrev1 / closePrev2 >= 0.98 &&
+            (currentClose / closePrev1) < (closePrev1 / closePrev2) &&
+            currentClose < closePrev1 &&
+            currentClose < currentOpen &&
+            minVolume3d >= 300000 &&
+            (currentClose - currentLow) / (currentHigh - currentLow) < 0.2;
+
+        if (isBullishSLTB || isBearishSLTB) {
+            processedSymbols.add(symbol);
+            await dbWrapper.upsertScans({
+                symbol,
+                scanType: isBullishSLTB ? "sltbBO" : "sltbBD",
+                date: new Date().toISOString().slice(0, 10),
+                extraData: {
+                    currentClose,
+                    currentTs,
+                },
+                tradingSymbol: statsData.tradingSymbol,
+            });
+        }
+    };
+};
 
 const processNewHighScan = genProcessNewHighScan();
 const process4PercentBOScan = genProcess4PercentBOScan();
 const processBollarBOScan = genProcessBollarBOScan();
+const processSLTBScan = genProcessSLTBScan();
 
 export {
     processNewHighScan,
     process4PercentBOScan,
     processBollarBOScan,
+    processSLTBScan,
 };
