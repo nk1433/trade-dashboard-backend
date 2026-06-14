@@ -46,9 +46,9 @@ app.post("/api/paper-trade/place-order", verifyToken, paperTradeController.place
 app.get("/api/paper-trade/portfolio", verifyToken, paperTradeController.getPortfolio);
 app.get("/api/paper-trade/trades", verifyToken, paperTradeController.getTrades);
 app.put("/api/paper-trade/holdings", verifyToken, paperTradeController.updateHolding);
-app.get("/api/tv/1.1/charts", verifyToken, tvController.getCharts);
-app.post("/api/tv/1.1/charts", verifyToken, multer().none(), tvController.saveChart);
-app.delete("/api/tv/1.1/charts", verifyToken, tvController.deleteChart);
+app.get("/api/tv/1.1/charts", tvController.getCharts);
+app.post("/api/tv/1.1/charts", multer().none(), tvController.saveChart);
+app.delete("/api/tv/1.1/charts", tvController.deleteChart);
 app.post('/webhook', alertController.processWebhook);
 
 app.post('/auth/callback', upstoxAuth);

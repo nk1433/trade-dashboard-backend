@@ -191,7 +191,7 @@ const genProcess4PercentBOScan = () => {
         const isBearishMB = priceRatio <= 0.96 && currentVolume > prevVolume && currentVolume >= 100000;
         const withinFirst30Mins = isWithinFirstNMins(currentTs, TRACKING_DURATION_MINUTES)
 
-        if (isBullishMB || isBearishMB && withinFirst30Mins) {
+        if (isBullishMB || isBearishMB) {
             processedSymbols.add(symbol);
             const pctChange = ((currentPrice - prevClose) / prevClose) * 100;
             await dbWrapper.upsertScans({
