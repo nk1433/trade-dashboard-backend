@@ -68,19 +68,27 @@ const genProcessNewHighScan = () => {
                 newHighCounts[symbol] += 1;
 
                 if (newHighCounts[symbol] >= 40) {
+                    const stats = await get52WeekStatsMap();
+                    const prevClose = stats?.[symbol]?.lastPrice;
+                    const pctChange = prevClose ? ((currentHigh - prevClose) / prevClose) * 100 : 0;
                     await dbWrapper.upsertScans({
                         symbol,
                         scanType: "newHigh",
                         date: new Date().toISOString().slice(0, 10),
                         extraData: {
-                            open: ohlc.open,
-                            close: ohlc.close,
-                            low: ohlc.low,
-                            previousHigh: oldHigh,
-                            newHigh: currentHigh,
-                            newHighCount: newHighCounts[symbol],
+                            currentPrice: currentHigh,
+                            pctChange,
+                            currentTs,
+                            additionalInfo: {
+                                open: ohlc.open,
+                                close: ohlc.close,
+                                low: ohlc.low,
+                                previousHigh: oldHigh,
+                                newHigh: currentHigh,
+                                newHighCount: newHighCounts[symbol],
+                            }
                         },
-                        tradingSymbol: (await get52WeekStatsMap())?.[symbol]?.tradingSymbol,
+                        tradingSymbol: stats?.[symbol]?.tradingSymbol,
                     });
                 }
             }
@@ -112,17 +120,24 @@ const genProcessBollarBOScan = () => {
         if (Math.abs(close - open) >= 50 && volume >= 100000 && withinFirst30Mins) {
             processedSymbols.add(symbol);
             const isBullish = close - open >= 50;
+            const stats = await get52WeekStatsMap();
+            const prevClose = stats?.[symbol]?.lastPrice;
+            const pctChange = prevClose ? ((close - prevClose) / prevClose) * 100 : 0;
             await dbWrapper.upsertScans({
                 symbol,
                 scanType: isBullish ? "dollarBO" : "dollarBD",
                 date: new Date().toISOString().slice(0, 10),
                 extraData: {
-                    open,
-                    close,
-                    volume,
+                    currentPrice: close,
+                    pctChange,
                     currentTs,
+                    additionalInfo: {
+                        open,
+                        close,
+                        volume,
+                    }
                 },
-                tradingSymbol: (await get52WeekStatsMap())?.[symbol]?.tradingSymbol,
+                tradingSymbol: stats?.[symbol]?.tradingSymbol,
             });
         }
     };
@@ -204,11 +219,13 @@ const genProcess4PercentBOScan = () => {
                 scanType: isBullishMB ? "4PercentBO" : "4PercentBD",
                 date: new Date().toISOString().slice(0, 10),
                 extraData: {
-                    prevClose,
                     currentPrice,
                     pctChange,
                     currentTs,
-                    isBO: isBullishMB,
+                    additionalInfo: {
+                        prevClose,
+                        isBO: isBullishMB,
+                    }
                 },
                 tradingSymbol: statsData.tradingSymbol,
             });
@@ -275,13 +292,19 @@ const genProcessSLTBScan = () => {
 
         if (isBullishSLTB || isBearishSLTB) {
             processedSymbols.add(symbol);
+            const prevClose = statsData.lastPrice;
+            const pctChange = prevClose ? ((currentClose - prevClose) / prevClose) * 100 : 0;
             await dbWrapper.upsertScans({
                 symbol,
                 scanType: isBullishSLTB ? "sltbBO" : "sltbBD",
                 date: new Date().toISOString().slice(0, 10),
                 extraData: {
-                    currentClose,
+                    currentPrice: currentClose,
+                    pctChange,
                     currentTs,
+                    additionalInfo: {
+                        currentClose,
+                    }
                 },
                 tradingSymbol: statsData.tradingSymbol,
             });
