@@ -144,15 +144,18 @@ const genProcessBollarBOScan = () => {
 };
 
 let statsCache = null;
+let cacheDateStr = null;
 let isFetching = false;
 
 const get52WeekStatsMap = async () => {
-    if (statsCache) return statsCache;
-    if (isFetching) return null;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (statsCache && cacheDateStr === todayStr) return statsCache;
+    if (isFetching) return statsCache || null;
     isFetching = true;
     try {
         const stats = await dbWrapper.getAllInstrument52WeekStats();
         statsCache = {};
+        cacheDateStr = todayStr;
         stats.forEach(doc => {
             const key = doc.instrumentKey;
             const lastPrice = doc.lastPrice;
@@ -209,7 +212,6 @@ const genProcess4PercentBOScan = () => {
 
         const isBullishMB = priceRatio >= 1.04 && currentVolume > prevVolume && currentVolume >= 100000;
         const isBearishMB = priceRatio <= 0.96 && currentVolume > prevVolume && currentVolume >= 100000;
-        const withinFirst30Mins = isWithinFirstNMins(currentTs, TRACKING_DURATION_MINUTES)
 
         if (isBullishMB || isBearishMB) {
             processedSymbols.add(symbol);

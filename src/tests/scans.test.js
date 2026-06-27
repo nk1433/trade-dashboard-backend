@@ -37,6 +37,12 @@ const setupMocks = () => {
             prevDayVolume: 50000
         },
         {
+            instrumentKey: "SYMBOL_4_PERCENT_LATE",
+            lastPrice: 200,
+            tradingsymbol: "MOCK_SYMBOL",
+            prevDayVolume: 50000
+        },
+        {
             instrumentKey: "SYMBOL_BULLISH",
             lastPrice: 200,
             tradingsymbol: "MOCK_SYMBOL",
@@ -82,12 +88,15 @@ const runTests = async () => {
     await processNewHighScan(symbol, ohlc, validTs);
     assert.strictEqual(upsertedScans.length, 0, "First valid run should only track the initial high, not insert");
     
-    // Second run with a HIGHER high should upsert
-    const higherOhlc = { ...ohlc, high: 500 };
-    await processNewHighScan(symbol, higherOhlc, validTs);
-    assert.strictEqual(upsertedScans.length, 1, "Second valid run with higher high should upsert to DB");
+    // Second run with a HIGHER high should upsert (now requires 40 new highs)
+    let higherOhlc = { ...ohlc };
+    for (let i = 0; i < 40; i++) {
+        higherOhlc.high += 1;
+        await processNewHighScan(symbol, higherOhlc, validTs);
+    }
+    assert.strictEqual(upsertedScans.length, 1, "After 40 new highs, it should upsert to DB");
     assert.strictEqual(upsertedScans[0].scanType, "newHigh");
-    assert.strictEqual(upsertedScans[0].extraData.newHigh, 500);
+    assert.strictEqual(upsertedScans[0].extraData.additionalInfo.newHighCount, 40);
 
     // 2. Test 4% Breakout / Breakdown
     console.log("--> Testing 4% Breakout/Breakdown Scan");
@@ -107,6 +116,12 @@ const runTests = async () => {
     const lowVolOhlc = { ...ohlc, close: 210, vol: 90000 };
     await process4PercentBOScan("SYMBOL_4_PERCENT_LOW", lowVolOhlc, validTs);
     assert.strictEqual(upsertedScans.length, 0, "Should NOT trigger if volume < 100000");
+
+    // Test acceptance: Outside 30 mins window should still work
+    upsertedScans = [];
+    await process4PercentBOScan("SYMBOL_4_PERCENT_LATE", breakoutOhlc, lateTs);
+    assert.strictEqual(upsertedScans.length, 1, "Should trigger even if outside 30 mins window");
+    assert.strictEqual(upsertedScans[0].scanType, "4PercentBO");
 
     // 3. Test Dollar Breakout / Breakdown
     console.log("--> Testing Dollar Breakout/Breakdown Scan");
