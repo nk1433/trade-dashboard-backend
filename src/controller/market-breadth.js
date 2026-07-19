@@ -78,6 +78,7 @@ router.post("/sync-daily-market-breadth", async (req, res) => {
           for (const candle of candles) {
             const date = candle[0].split("T")[0];
             const open = candle[1];
+            const low = candle[3];
             const close = candle[4];
             const pctChange = ((close - open) / open) * 100;
 
@@ -88,6 +89,7 @@ router.post("/sync-daily-market-breadth", async (req, res) => {
                 total: 0,
                 up20Count: 0,
                 down20Count: 0,
+                strongStartCount: 0,
               });
             }
 
@@ -96,6 +98,8 @@ router.post("/sync-daily-market-breadth", async (req, res) => {
 
             if (pctChange >= 4) { dayStats.upCount++; }
             else if (pctChange <= -4) { dayStats.downCount++; }
+
+            if (low >= open) { dayStats.strongStartCount++; }
 
             const pctChange5d = pctChange5dMap.get(date);
             if (pctChange5d !== undefined) {
@@ -121,6 +125,7 @@ router.post("/sync-daily-market-breadth", async (req, res) => {
         totalStocks: stats.total,
         up20Pct5d: stats.up20Count || 0,
         down20Pct5d: stats.down20Count || 0,
+        strongStartCount: stats.strongStartCount || 0,
       });
     }
 

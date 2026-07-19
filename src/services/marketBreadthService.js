@@ -168,6 +168,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                                 up80Pct52WL: 0,
                                 up50RsCount: 0,
                                 up250Rs5dCount: 0,
+                                strongStartCount: 0,
                                 // New Metrics
                                 up25PctQuarter: 0,
                                 down25PctQuarter: 0,
@@ -246,6 +247,11 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                         if (pctChange34d !== undefined) {
                             if (pctChange34d >= 13) dayStats.up13Pct34d++;
                             else if (pctChange34d <= -13) dayStats.down13Pct34d++;
+                        }
+
+                        // Strong Start Count
+                        if (low >= open) {
+                            dayStats.strongStartCount++;
                         }
 
                         // Check Up 80% from 52WL
@@ -394,6 +400,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                 up80Pct52WL: entry.up80Pct52WL || 0,
                 up50RsCount: entry.up50RsCount || 0,
                 up250Rs5dCount: entry.up250Rs5dCount || 0,
+                strongStartCount: entry.strongStartCount || 0,
                 // New Metrics
                 up25PctQuarter: entry.up25PctQuarter || 0,
                 down25PctQuarter: entry.down25PctQuarter || 0,
