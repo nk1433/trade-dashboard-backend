@@ -22,6 +22,8 @@ const Instrument52WeekStats = sequelize.define('Instrument52WeekStats', {
   closePrev1: { type: DataTypes.DECIMAL(15, 4) },  // previous day close, c1
   closePrev2: { type: DataTypes.DECIMAL(15, 4) },
   priceChange: { type: DataTypes.DECIMAL(10, 4) },
+  minLow5d: { type: DataTypes.DECIMAL(15, 4) },
+  minVolume5d: { type: DataTypes.INTEGER },
 }, {
   tableName: 'instrument_52week_stats',
   timestamps: false,

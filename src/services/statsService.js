@@ -49,6 +49,8 @@ export const sync52WeekStats = async () => {
 
             // Calculate minVolume3d (minimum volume in last 3 days)
             const minVolume3d = Math.min(...candles.slice(0, 3).map(c => c[5]));
+            const minVolume5d = Math.min(...candles.slice(0, 5).map(c => c[5]));
+            const minLow5d = Math.min(...candles.slice(0, 5).map(c => c[3]));
 
             // Previous day close prices
             const closePrev1 = candlesLength > 1 ? candles[1][4] : null;
@@ -92,6 +94,8 @@ export const sync52WeekStats = async () => {
                 avgClose126d,
                 avgClose200d,
                 avgClose21d,
+                minLow5d,
+                minVolume5d,
             };
 
             await dbWrapper.upsertInstrument52WeekStats(data);

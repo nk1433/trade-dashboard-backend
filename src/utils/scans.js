@@ -167,6 +167,8 @@ const get52WeekStatsMap = async () => {
                     tradingSymbol,
                     prevDayVolume: Number(prevDayVolume?.toString() || 0),
                     minVolume3d: Number(doc.minVolume3d?.toString() || 0),
+                    minVolume5d: Number(doc.minVolume5d?.toString() || 0),
+                    minLow5d: Number(doc.minLow5d?.toString() || 0),
                     trendIntensity: Number(doc.trendIntensity?.toString() || 0),
                     closePrev1: Number(doc.closePrev1?.toString() || 0),
                     closePrev2: Number(doc.closePrev2?.toString() || 0),
@@ -319,9 +321,73 @@ const process4PercentBOScan = genProcess4PercentBOScan();
 const processBollarBOScan = genProcessBollarBOScan();
 const processSLTBScan = genProcessSLTBScan();
 
+const genProcessBullishReversalScan = () => {
+    let currentDayStr = null;
+    let processedSymbols = new Set();
+
+    return async (symbol, ohlc, currentTs) => {
+        const tsDate = new Date(Number(currentTs));
+        const dayStr = tsDate.toISOString().slice(0, 10);
+        if (currentDayStr !== dayStr) {
+            currentDayStr = dayStr;
+            processedSymbols = new Set();
+        }
+
+        if (processedSymbols.has(symbol)) return;
+
+        const stats = await get52WeekStatsMap();
+        if (!stats) return;
+
+        const statsData = stats[symbol];
+        if (!statsData) return;
+
+        const { minLow5d, minVolume3d } = statsData;
+        
+        // Wait until stats are fully synced (minLow5d and minVolume3d exist)
+        if (!minLow5d || !minVolume3d) return;
+
+        const currentClose = ohlc.close;
+        const currentOpen = ohlc.open;
+        const currentHigh = ohlc.high;
+        const currentLow = ohlc.low;
+        const currentVolume = ohlc.vol;
+
+        const isBullishReversal = 
+            currentLow <= minLow5d &&
+            (currentOpen - currentLow) > (currentClose - currentOpen) &&
+            (currentHigh - currentLow) > 0 &&
+            (currentClose - currentLow) / (currentHigh - currentLow) >= 0.6 &&
+            currentVolume >= 290000 &&
+            minVolume3d >= 100000;
+
+        if (isBullishReversal) {
+            processedSymbols.add(symbol);
+            const prevClose = statsData.lastPrice;
+            const pctChange = prevClose ? ((currentClose - prevClose) / prevClose) * 100 : 0;
+            await dbWrapper.upsertScans({
+                symbol,
+                scanType: "bullishReversal",
+                date: new Date().toISOString().slice(0, 10),
+                extraData: {
+                    currentPrice: currentClose,
+                    pctChange,
+                    currentTs,
+                    additionalInfo: {
+                        currentClose,
+                    }
+                },
+                tradingSymbol: statsData.tradingSymbol,
+            });
+        }
+    };
+};
+
+const processBullishReversalScan = genProcessBullishReversalScan();
+
 export {
     processNewHighScan,
     process4PercentBOScan,
     processBollarBOScan,
     processSLTBScan,
+    processBullishReversalScan,
 };

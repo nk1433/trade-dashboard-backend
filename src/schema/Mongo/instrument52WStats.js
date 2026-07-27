@@ -88,6 +88,14 @@ const Instrument52WeekStatsSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Decimal128,
     default: null,
   },
+  minLow5d: {
+    type: mongoose.Schema.Types.Decimal128,
+    default: null,
+  },
+  minVolume5d: {
+    type: Number,
+    default: null,
+  },
 
 }, {
   collection: 'instrument_52week_stats',
@@ -101,7 +109,7 @@ Instrument52WeekStatsSchema.set('toJSON', {
       'ema10', 'ema21', 'ema50',
       'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'lastPrice',
       'trendIntensity', 'closePrev1', 'closePrev2',
-      'avgClose126d', 'priceChange', 'avgClose200d',
+      'avgClose126d', 'priceChange', 'avgClose200d', 'minLow5d',
     ].forEach(field => {
       if (ret[field] && ret[field]._bsontype === 'Decimal128') {
         ret[field] = ret[field].toString();
@@ -117,7 +125,7 @@ Instrument52WeekStatsSchema.set('toObject', {
       'ema10', 'ema21', 'ema50',
       'fiftyTwoWeekHigh', 'fiftyTwoWeekLow', 'lastPrice',
       'trendIntensity', 'closePrev1', 'closePrev2',
-      'avgClose126d', 'priceChange', 'avgClose200d',
+      'avgClose126d', 'priceChange', 'avgClose200d', 'minLow5d',
     ].forEach(field => {
       if (ret[field] && ret[field]._bsontype === 'Decimal128') {
         ret[field] = ret[field].toString();
