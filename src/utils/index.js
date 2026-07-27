@@ -131,3 +131,36 @@ export function calculateMovingAverageNDays(candles, days) {
   }
   return maMap;
 }
+
+export function calculateMinLow5DaysMap(candles) {
+  // Assumes candles are sorted ascending by date (oldest to newest)
+  candles.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  const minLowMap = new Map();
+
+  for (let i = 4; i < candles.length; i++) {
+    const currentDate = candles[i][0].split('T')[0];
+    let minLow = candles[i][3]; // low of current day
+    for (let j = 1; j < 5; j++) {
+      if (candles[i - j][3] < minLow) minLow = candles[i - j][3];
+    }
+    minLowMap.set(currentDate, minLow);
+  }
+  return minLowMap;
+}
+
+export function calculateMinVolume3DaysMap(candles) {
+  // Assumes candles are sorted ascending by date (oldest to newest)
+  candles.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+  const minVolMap = new Map();
+
+  // We need 3 days prior to the current day, so we need at least 3 previous days
+  for (let i = 3; i < candles.length; i++) {
+    const currentDate = candles[i][0].split('T')[0];
+    let minVol = candles[i - 1][5]; // start with 1 day ago
+    for (let j = 2; j <= 3; j++) {
+      if (candles[i - j][5] < minVol) minVol = candles[i - j][5];
+    }
+    minVolMap.set(currentDate, minVol);
+  }
+  return minVolMap;
+}

@@ -150,6 +150,11 @@ const MarketBreadthSchema = new mongoose.Schema({
     type: Number,
     required: false,
     default: 0,
+  },
+  bullishReversalCount: {
+    type: Number,
+    required: false,
+    default: 0,
   }
 }, {
   collection: 'market_breadth',

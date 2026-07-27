@@ -151,6 +151,11 @@ const MarketBreadth = sequelize.define('MarketBreadth', {
     type: DataTypes.INTEGER,
     allowNull: true,
     defaultValue: 0
+  },
+  bullishReversalCount: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0
   }
 }, {
   tableName: 'market_breadth',

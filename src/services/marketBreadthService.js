@@ -1,6 +1,6 @@
 import axios from "axios";
 import moment from "moment";
-import { calculatePctChange5Days, calculatePriceDiff5Days, calculatePctChangeNDays, calculateMovingAverageNDays } from "../utils/index.js";
+import { calculatePctChange5Days, calculatePriceDiff5Days, calculatePctChangeNDays, calculateMovingAverageNDays, calculateMinLow5DaysMap, calculateMinVolume3DaysMap } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
 
 export const sync52WeekMarketBreadth = async (fullSync = false) => {
@@ -133,6 +133,8 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                     const pctChangeMonthMap = calculatePctChangeNDays(candles, 21);   // 21 Days (approx Month)
                     const pctChange34dMap = calculatePctChangeNDays(candles, 34);     // 34 Days
                     const ma21dMap = calculateMovingAverageNDays(candles, 21);        // 21 Days MA
+                    const minLow5dMap = calculateMinLow5DaysMap(candles);
+                    const minVolume3dMap = calculateMinVolume3DaysMap(candles);
 
                     for (const candle of candles) {
                         const date = candle[0].split("T")[0];
@@ -181,6 +183,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                                 // MA Metrics
                                 above21dma: 0,
                                 below21dma: 0,
+                                bullishReversalCount: 0,
                             });
                         }
 
@@ -280,6 +283,25 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                                 dayStats.above21dma++;
                             } else if (close < ma21d) {
                                 dayStats.below21dma++;
+                            }
+                        }
+
+                        // Bullish Reversal Scan Check
+                        const minLow5d = minLow5dMap.get(date);
+                        const minVol3d = minVolume3dMap.get(date);
+                        
+                        if (minLow5d !== undefined && minVol3d !== undefined) {
+                            const isBullishReversal = 
+                                low <= minLow5d &&
+                                minLow5d > 0 &&
+                                (open - low) > (close - open) &&
+                                (high - low) > 0 &&
+                                (close - low) / (high - low) >= 0.6 &&
+                                volume >= 290000 &&
+                                minVol3d >= 100000;
+                            
+                            if (isBullishReversal) {
+                                dayStats.bullishReversalCount++;
                             }
                         }
                     }
@@ -412,6 +434,7 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
                 down13Pct34d: entry.down13Pct34d || 0,
                 above21dma: entry.above21dma || 0,
                 below21dma: entry.below21dma || 0,
+                bullishReversalCount: entry.bullishReversalCount || 0,
             });
         }
 
