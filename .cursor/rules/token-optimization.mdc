@@ -1,0 +1,13 @@
+---
+description: Token-efficient context discipline for trade-dashboard-backend
+alwaysApply: true
+---
+
+# Token optimization
+
+- **Search before read:** Grep/Glob `src/controller`, `dbWrapper`, route names before opening files
+- **Never bulk-read:** `src/index/*.json`, `pnpm-lock.yaml`, `node_modules`, full `dbWrapper.js` unless editing it
+- **Narrow reads:** Use offset/limit on large controllers; max ~80 lines unless actively editing
+- **Start multi-file tasks:** Read `SKILLS.md`, pick one skill, load only that `SKILL.md`
+- **Cross-repo:** Open `C:\sai\trade-dashboard-nk` only when API/auth/WS contracts change
+- **One skill max:** Load one skill + its `reference.md` per task
