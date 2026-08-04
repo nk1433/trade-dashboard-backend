@@ -27,6 +27,26 @@ const PaperTrade = sequelize.define('PaperTrade', {
         type: DataTypes.STRING, // 'BUY' or 'SELL'
         allowNull: false,
     },
+    slPrice: {
+        type: DataTypes.FLOAT,
+        defaultValue: 0,
+    },
+    riskAmount: {
+        type: DataTypes.FLOAT,
+        defaultValue: 0,
+    },
+    riskPercentage: {
+        type: DataTypes.FLOAT,
+        defaultValue: 0,
+    },
+    slStrategy: {
+        type: DataTypes.STRING,
+        defaultValue: '',
+    },
+    slPercentage: {
+        type: DataTypes.FLOAT,
+        defaultValue: 0,
+    },
     timestamp: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,

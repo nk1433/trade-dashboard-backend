@@ -2,7 +2,7 @@ import dbWrapper from '../utils/dbWrapper.js';
 
 export const placeOrder = async (req, res) => {
     try {
-        const { userId, symbol, quantity, price, type, sl } = req.body;
+        const { userId, symbol, quantity, price, type, sl, slPrice, riskAmount, riskPercentage, slStrategy, slPercentage } = req.body;
 
         if (!userId || !symbol || !quantity || !price || !type) {
             return res.status(400).json({ status: 'error', error: 'Missing required fields' });
@@ -122,6 +122,11 @@ export const placeOrder = async (req, res) => {
             quantity,
             price,
             type,
+            slPrice: slPrice || 0,
+            riskAmount: riskAmount || 0,
+            riskPercentage: riskPercentage || 0,
+            slStrategy: slStrategy || '',
+            slPercentage: slPercentage || 0,
             status: 'EXECUTED',
             timestamp: new Date()
         };
