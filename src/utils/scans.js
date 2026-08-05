@@ -24,6 +24,22 @@ const isWithinFirstNMins = (timestamp, durationMinutes) => {
     return diffMinutes >= 0 && diffMinutes <= durationMinutes;
 };
 
+const isWithinTimeRange = (currentTs, startHour, startMinute, endHour, endMinute) => {
+    const tsDate = new Date(Number(currentTs));
+    
+    // Convert current TS to IST (UTC + 5:30)
+    const istTime = new Date(tsDate.getTime() + (5.5 * 60 * 60 * 1000));
+    
+    const hours = istTime.getUTCHours();
+    const minutes = istTime.getUTCMinutes();
+    const timeInMins = hours * 60 + minutes;
+    
+    const startTimeInMins = startHour * 60 + startMinute;
+    const endTimeInMins = endHour * 60 + endMinute;
+    
+    return timeInMins >= startTimeInMins && timeInMins <= endTimeInMins;
+};
+
 const genProcessNewHighScan = () => {
     let currentDayStr = null;
     let scanStates = {
@@ -172,7 +188,9 @@ const get52WeekStatsMap = async () => {
                     trendIntensity: Number(doc.trendIntensity?.toString() || 0),
                     closePrev1: Number(doc.closePrev1?.toString() || 0),
                     closePrev2: Number(doc.closePrev2?.toString() || 0),
-                    avgClose200d: Number(doc.avgClose200d?.toString() || 0)
+                    avgClose200d: Number(doc.avgClose200d?.toString() || 0),
+                    fiftyTwoWeekLow: Number(doc.fiftyTwoWeekLow?.toString() || 0),
+                    avgClose126d: Number(doc.avgClose126d?.toString() || 0)
                 };
             }
         });
@@ -384,10 +402,79 @@ const genProcessBullishReversalScan = () => {
 
 const processBullishReversalScan = genProcessBullishReversalScan();
 
+const genProcessAntsScan = () => {
+    let currentDayStr = null;
+    let processedSymbols = new Set();
+
+    return async (symbol, ohlc, currentTs) => {
+        const tsDate = new Date(Number(currentTs));
+        const dayStr = tsDate.toISOString().slice(0, 10);
+        if (currentDayStr !== dayStr) {
+            currentDayStr = dayStr;
+            processedSymbols = new Set();
+        }
+
+        if (processedSymbols.has(symbol)) return;
+
+        // Check if between 3:00 PM (15:00) and 3:15 PM (15:15) IST
+        if (!isWithinTimeRange(currentTs, 15, 0, 15, 15)) return;
+
+        const stats = await get52WeekStatsMap();
+        if (!stats) return;
+
+        const statsData = stats[symbol];
+        if (!statsData) return;
+
+        const { minVolume3d, trendIntensity, fiftyTwoWeekLow, avgClose126d } = statsData;
+        
+        if (!minVolume3d || !fiftyTwoWeekLow || !avgClose126d) return;
+
+        const prevClose = statsData.lastPrice;
+        if (!prevClose) return;
+
+        const currentClose = ohlc.close;
+        const currentVolume = ohlc.vol;
+        const pctChange = ((currentClose - prevClose) / prevClose) * 100;
+
+        let isAnts = false;
+        
+        if (pctChange > -1 && pctChange < 1 && minVolume3d > 100000) {
+            if (trendIntensity >= 1.05) {
+                isAnts = true;
+            } else if ((currentClose / fiftyTwoWeekLow) >= 1.8) {
+                isAnts = true;
+            } else if ((currentClose / avgClose126d) > 1.19) {
+                isAnts = true;
+            }
+        }
+
+        if (isAnts) {
+            processedSymbols.add(symbol);
+            await dbWrapper.upsertScans({
+                symbol,
+                scanType: "bullishAnts",
+                date: new Date().toISOString().slice(0, 10),
+                extraData: {
+                    currentPrice: currentClose,
+                    pctChange,
+                    currentTs,
+                    additionalInfo: {
+                        currentVolume,
+                    }
+                },
+                tradingSymbol: statsData.tradingSymbol,
+            });
+        }
+    };
+};
+
+const processAntsScan = genProcessAntsScan();
+
 export {
     processNewHighScan,
     process4PercentBOScan,
     processBollarBOScan,
     processSLTBScan,
     processBullishReversalScan,
+    processAntsScan,
 };
