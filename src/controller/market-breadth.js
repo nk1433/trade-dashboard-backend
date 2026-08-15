@@ -6,7 +6,7 @@ import { sequelize } from "../database/index.js";
 import niftymidsmall400 from "../index/niftymidsmall400.json" with { type: 'json' };
 import { calculatePctChange5Days } from "../utils/index.js";
 import dbWrapper from '../utils/dbWrapper.js';
-import { sync52WeekMarketBreadth } from "../services/marketBreadthService.js";
+import { sync52WeekMarketBreadth, syncIntradayMarketBreadth } from "../services/marketBreadthService.js";
 import verifyToken from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -19,6 +19,18 @@ router.post("/sync-52week-marketbreath", verifyToken, async (req, res) => {
   } catch (error) {
     console.error("Sync error:", error);
     res.status(500).json({ error: "Failed to sync 52-week breadth." });
+  }
+});
+
+// Intraday sync — uses the public 30-min intraday API to get today's breadth
+// without waiting for the overnight cron. No auth token required for the upstream API.
+router.post("/sync-intraday-market-breadth", verifyToken, async (req, res) => {
+  try {
+    const result = await syncIntradayMarketBreadth();
+    res.json(result);
+  } catch (error) {
+    console.error("[Intraday Sync] Error:", error);
+    res.status(500).json({ error: "Failed to sync intraday market breadth." });
   }
 });
 
