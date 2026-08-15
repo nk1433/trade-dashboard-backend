@@ -664,6 +664,18 @@ const updateInstrumentDetails = async (tradingSymbol, updates) => {
   }
 };
 
+const getInstrumentBySymbol = async (tradingSymbol) => {
+  try {
+    if (USE_MONGO) {
+      return await UniverseMongo.findOne({ tradingsymbol: tradingSymbol }).exec();
+    }
+    return null;
+  } catch (error) {
+    console.error('Error in getInstrumentBySymbol:', error);
+    return null;
+  }
+};
+
 export default {
   upsertInstrument52WeekStats,
   getAllInstrument52WeekStats,
@@ -699,4 +711,5 @@ export default {
   getUniverse,
   upsertUniverse,
   updateInstrumentDetails,
+  getInstrumentBySymbol,
 };

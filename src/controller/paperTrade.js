@@ -1,23 +1,146 @@
 import dbWrapper from '../utils/dbWrapper.js';
+import axios from 'axios';
+
+// ── Sandbox helper ────────────────────────────────────────────────────────────
+const SANDBOX_BASE = 'https://api-sandbox.upstox.com';
+
+const sandboxHeaders = () => {
+    const token = process.env.UPSTOX_SANDBOX_ACCESS_TOKEN;
+    return {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+    };
+};
+
+/**
+ * Places an order in the Upstox sandbox environment.
+ * Awaits response and logs details for debugging/verification.
+ */
+const mirrorToSandbox = async (orderPayload) => {
+    const sandboxToken = process.env.UPSTOX_SANDBOX_ACCESS_TOKEN;
+    if (!sandboxToken) {
+        console.error("[PaperTrade Sandbox] Placement aborted: UPSTOX_SANDBOX_ACCESS_TOKEN is missing in process.env");
+        throw new Error("UPSTOX_SANDBOX_ACCESS_TOKEN is not configured on the server. Please check your backend .env file.");
+    }
+    if (!orderPayload.instrument_token) {
+        console.error("[PaperTrade Sandbox] Placement aborted: Missing instrument_token in payload");
+        throw new Error("Unable to place sandbox order: Missing instrument_token.");
+    }
+
+    const body = {
+        quantity: Number(orderPayload.quantity),
+        product: orderPayload.product || 'D',
+        validity: orderPayload.validity || 'DAY',
+        price: Number(orderPayload.price) ?? 0,
+        tag: orderPayload.tag || 'paper-trade',
+        instrument_token: orderPayload.instrument_token,
+        order_type: orderPayload.order_type || 'MARKET',
+        transaction_type: orderPayload.transaction_type,
+        disclosed_quantity: Number(orderPayload.disclosed_quantity) ?? 0,
+        trigger_price: Number(orderPayload.trigger_price) ?? 0,
+        is_amo: orderPayload.is_amo ?? false,
+        slice: orderPayload.slice ?? false,
+    };
+
+    // If order type is MARKET, price must be 0
+    if (body.order_type === 'MARKET') {
+        body.price = 0;
+    }
+
+    // Upstox requires trigger_price for stop loss (SL, SL-M) orders. For limit/market, trigger_price should be 0.
+    if (body.order_type !== 'SL' && body.order_type !== 'SL-M') {
+        body.trigger_price = 0;
+    }
+
+    const url = `${SANDBOX_BASE}/v3/order/place`;
+
+    console.log(`[PaperTrade Sandbox] Sending POST request to: ${url}`);
+    console.log(`[PaperTrade Sandbox] Payload:`, JSON.stringify(body, null, 2));
+    console.log(`[PaperTrade Sandbox] Auth Token Prefix: ${sandboxToken.substring(0, 15)}...`);
+
+    try {
+        const resp = await axios.post(url, body, { headers: sandboxHeaders() });
+        console.log(`[PaperTrade Sandbox] Order Placed Successfully!`);
+        console.log(`[PaperTrade Sandbox] Response Data:`, JSON.stringify(resp.data, null, 2));
+        return resp.data;
+    } catch (err) {
+        console.error(`[PaperTrade Sandbox] Request failed!`);
+        if (err.response) {
+            console.error(`[PaperTrade Sandbox] HTTP Status: ${err.response.status}`);
+            console.error(`[PaperTrade Sandbox] Error Data:`, JSON.stringify(err.response.data, null, 2));
+        } else {
+            console.error(`[PaperTrade Sandbox] Error Message: ${err.message}`);
+        }
+        throw err;
+    }
+};
 
 export const placeOrder = async (req, res) => {
     try {
-        const { userId, symbol, quantity, price, type, sl, slPrice, riskAmount, riskPercentage, slStrategy, slPercentage } = req.body;
+        const {
+            userId, symbol, quantity, price, type, sl, slPrice,
+            riskAmount, riskPercentage, slStrategy, slPercentage,
+            // Upstox sandbox fields (optional)
+            instrument_token, product, validity, order_type, disclosed_quantity,
+            trigger_price, is_amo, slice, tag,
+        } = req.body;
 
         if (!userId || !symbol || !quantity || !price || !type) {
             return res.status(400).json({ status: 'error', error: 'Missing required fields' });
         }
 
-        // Find or create portfolio
+        // 1. Resolve Instrument Key / Token
+        let resolvedInstrumentToken = instrument_token;
+        if (!resolvedInstrumentToken) {
+            const inst = await dbWrapper.getInstrumentBySymbol(symbol);
+            if (inst && inst.instrument_key) {
+                resolvedInstrumentToken = inst.instrument_key;
+            }
+        }
+
+        if (!resolvedInstrumentToken) {
+            return res.status(400).json({
+                status: 'error',
+                error: `Unable to resolve instrument token for symbol ${symbol}. Please ensure it exists in the universe database.`
+            });
+        }
+
+        // 2. Perform Sandbox Placement synchronously (blocking)
+        let sandboxResult = null;
+        try {
+            sandboxResult = await mirrorToSandbox({
+                instrument_token: resolvedInstrumentToken,
+                quantity,
+                product,
+                validity,
+                price,
+                tag,
+                order_type,
+                transaction_type: type, // BUY / SELL
+                disclosed_quantity,
+                trigger_price: trigger_price || slPrice || sl || 0,
+                is_amo,
+                slice,
+            });
+        } catch (sandboxError) {
+            console.error('[PaperTrade Sandbox] Place order failed:', sandboxError.response?.data || sandboxError.message);
+            const status = sandboxError.response?.status || 400;
+            const apiError = sandboxError.response?.data || { error: sandboxError.message };
+
+            // Check for standard structure: { errors: [{ message, errorCode }] }
+            const errorMsg = apiError.errors?.[0]?.message || apiError.message || JSON.stringify(apiError);
+            return res.status(status).json({
+                status: 'error',
+                error: `Sandbox Order Failed: ${errorMsg}`
+            });
+        }
+
+        // 3. Find or create portfolio
         let portfolio = await dbWrapper.getPaperPortfolio(userId);
         if (!portfolio) {
             portfolio = { userId, capital: 1000000, holdings: [] };
         } else {
-            // Ensure portfolio is a plain object if needed, or handle Sequelize/Mongoose instance
-            // For simplicity, we'll treat it as an object. 
-            // If it's a Mongoose doc, .toObject() might be needed, but dbWrapper usually returns docs.
-            // If it's Sequelize, .toJSON() might be needed.
-            // However, we can just access properties directly usually.
             if (portfolio.toJSON) portfolio = portfolio.toJSON();
             else if (portfolio.toObject) portfolio = portfolio.toObject();
         }
@@ -33,7 +156,6 @@ export const placeOrder = async (req, res) => {
             portfolio.capital -= totalCost;
 
             // Update holdings
-            // Ensure holdings is an array (Sequelize JSONB might return null if empty)
             if (!portfolio.holdings) portfolio.holdings = [];
 
             const existingHoldingIndex = portfolio.holdings.findIndex(h => h.symbol === symbol);
@@ -95,18 +217,14 @@ export const placeOrder = async (req, res) => {
                 portfolio.holdings.splice(existingHoldingIndex, 1);
             } else {
                 // Update existing holding
-                // Avg Price remains the same for remaining shares
                 portfolio.holdings[existingHoldingIndex] = {
                     ...existingHolding,
                     quantity: remainingQuantity,
                     invested: remainingQuantity * avgBuyPrice,
                     ltp: price,
-                    currentValue: remainingQuantity * price, // approximate current value
+                    currentValue: remainingQuantity * price,
                 };
             }
-
-            // Add PnL to the response or tracking if needed
-            // currently just updating capital is enough for the "account" view
         }
 
         // Save Portfolio via wrapper
@@ -127,6 +245,8 @@ export const placeOrder = async (req, res) => {
             riskPercentage: riskPercentage || 0,
             slStrategy: slStrategy || '',
             slPercentage: slPercentage || 0,
+            instrument_token: resolvedInstrumentToken || null,
+            sandboxOrderIds: sandboxResult?.data?.order_ids || null,
             status: 'EXECUTED',
             timestamp: new Date()
         };
@@ -250,6 +370,55 @@ export const updateHolding = async (req, res) => {
             portfolio.holdings[holdingIndex].sl = sl;
         }
 
+        // ── Modify Sandbox Stop-Loss Order if configured ─────────────────────
+        const sandboxToken = process.env.UPSTOX_SANDBOX_ACCESS_TOKEN;
+        if (sandboxToken && sl !== undefined) {
+            try {
+                // 1. Get sandbox order book
+                const orderBookResp = await axios.get(
+                    `${SANDBOX_BASE}/v2/order/retrieve-all`,
+                    { headers: sandboxHeaders() }
+                );
+
+                const orders = orderBookResp.data?.data || [];
+                // 2. Find active stop loss order for this symbol
+                const activeSLOrder = orders.find(o => 
+                    o.trading_symbol === symbol &&
+                    o.transaction_type === 'SELL' &&
+                    (o.order_type === 'SL' || o.order_type === 'SL-M') &&
+                    !(o.status?.toLowerCase() === 'complete' || 
+                      o.status?.toLowerCase() === 'filled' || 
+                      o.status?.toLowerCase() === 'rejected' || 
+                      o.status?.toLowerCase() === 'cancelled')
+                );
+
+                if (activeSLOrder) {
+                    console.log(`[PaperTrade Sandbox] Found active stop loss order ${activeSLOrder.order_id} for ${symbol}. Modifying to breakeven price: ${sl}`);
+                    
+                    const modifyBody = {
+                        order_id: activeSLOrder.order_id,
+                        quantity: activeSLOrder.quantity,
+                        order_type: 'SL', // Set to SL (Stop Loss Limit)
+                        validity: 'DAY',
+                        price: Number(sl),         // Limit price = Breakeven price
+                        trigger_price: Number(sl), // Trigger price = Breakeven price
+                        disclosed_quantity: 0
+                    };
+
+                    const modifyResp = await axios.put(
+                        `${SANDBOX_BASE}/v3/order/modify`,
+                        modifyBody,
+                        { headers: sandboxHeaders() }
+                    );
+                    console.log(`[PaperTrade Sandbox] SL order modified successfully:`, modifyResp.data);
+                } else {
+                    console.log(`[PaperTrade Sandbox] No active stop-loss order found for ${symbol} to modify.`);
+                }
+            } catch (sandboxError) {
+                console.error(`[PaperTrade Sandbox] Failed to modify SL order on sandbox:`, sandboxError.response?.data || sandboxError.message);
+            }
+        }
+
         // Save Portfolio via wrapper
         await dbWrapper.upsertPaperPortfolio(userId, {
             capital: portfolio.capital,
@@ -264,9 +433,50 @@ export const updateHolding = async (req, res) => {
     }
 };
 
+// ── Modify Order (sandbox only) ───────────────────────────────────────────────
+export const modifyOrder = async (req, res) => {
+    try {
+        const sandboxToken = process.env.UPSTOX_SANDBOX_ACCESS_TOKEN;
+        if (!sandboxToken) {
+            return res.status(500).json({ status: 'error', error: 'UPSTOX_SANDBOX_ACCESS_TOKEN not configured' });
+        }
+
+        const { order_id, quantity, order_type, validity, price, trigger_price, disclosed_quantity } = req.body;
+
+        if (!order_id) {
+            return res.status(400).json({ status: 'error', error: 'Missing order_id' });
+        }
+
+        const body = {
+            order_id,
+            quantity,
+            order_type,
+            validity: validity || 'DAY',
+            price: price ?? 0,
+            trigger_price: trigger_price ?? 0,
+            disclosed_quantity: disclosed_quantity ?? 0,
+        };
+
+        const resp = await axios.put(
+            `${SANDBOX_BASE}/v3/order/modify`,
+            body,
+            { headers: sandboxHeaders() }
+        );
+
+        console.log('[PaperTrade Sandbox] Order modified:', order_id, resp.data);
+        res.status(resp.status).json({ ...resp.data, _sandbox: true });
+    } catch (error) {
+        console.error('[PaperTrade Sandbox] Modify order failed:', error.response?.data || error.message);
+        const status = error.response?.status || 500;
+        const message = error.response?.data || { error: 'Internal server error' };
+        res.status(status).json(message);
+    }
+};
+
 export default {
     placeOrder,
     getPortfolio,
     getTrades,
-    updateHolding
+    updateHolding,
+    modifyOrder,
 };

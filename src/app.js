@@ -42,10 +42,12 @@ app.use("/api/scans", scanController);
 app.use("/scans", scanCriteriaController);
 app.use("/api/users", userController);
 app.use("/settings", userSettingsController);
-app.post("/api/paper-trade/place-order", verifyToken, paperTradeController.placeOrder);
-app.get("/api/paper-trade/portfolio", verifyToken, paperTradeController.getPortfolio);
-app.get("/api/paper-trade/trades", verifyToken, paperTradeController.getTrades);
-app.put("/api/paper-trade/holdings", verifyToken, paperTradeController.updateHolding);
+app.post("/api/paper-trade/place-order",  verifyToken, paperTradeController.placeOrder);
+app.get("/api/paper-trade/portfolio",     verifyToken, paperTradeController.getPortfolio);
+app.get("/api/paper-trade/trades",        verifyToken, paperTradeController.getTrades);
+app.put("/api/paper-trade/holdings",      verifyToken, paperTradeController.updateHolding);
+app.put("/api/paper-trade/modify-order",  verifyToken, paperTradeController.modifyOrder);
+
 app.get("/api/tv/1.1/charts", tvController.getCharts);
 app.post("/api/tv/1.1/charts", multer().none(), tvController.saveChart);
 app.delete("/api/tv/1.1/charts", tvController.deleteChart);
