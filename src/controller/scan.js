@@ -24,14 +24,16 @@ const fetchWithRetry = async (url, headers, retries = 3, delay = 1000) => {
 
 router.get("/compute-five-day-moves", async (req, res) => {
     try {
+        const queryDate = req.query.date || moment().format("YYYY-MM-DD");
+        
         const token = await dbWrapper.getTokenFromDB();
         const headers = {
             Authorization: `Bearer ${token}`,
             Accept: "application/json"
         };
         
-        const endDate = moment().format("YYYY-MM-DD");
-        const startDate = moment().subtract(15, "days").format("YYYY-MM-DD");
+        const endDate = queryDate;
+        const startDate = moment(queryDate).subtract(15, "days").format("YYYY-MM-DD");
         
         const batchSize = 3;
         const totalBatches = Math.ceil(niftymidsmall400.length / batchSize);
@@ -49,8 +51,9 @@ router.get("/compute-five-day-moves", async (req, res) => {
                     const response = await fetchWithRetry(url, headers, 3, 500);
                     const candles = response.data?.data?.candles || [];
                     if (candles.length >= 6) {
-                        const closeToday = candles[0][4];
-                        const close5dAgo = candles[5][4];
+                        const slice = candles.slice(0, 6);
+                        const closeToday = slice[0][4];
+                        const close5dAgo = slice[5][4];
                         const pctChange = ((closeToday - close5dAgo) / close5dAgo) * 100;
                         
                         const item = {
