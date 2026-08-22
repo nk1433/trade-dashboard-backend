@@ -156,6 +156,11 @@ const MarketBreadth = sequelize.define('MarketBreadth', {
     type: DataTypes.INTEGER,
     allowNull: true,
     defaultValue: 0
+  },
+  dollarBOCount: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: 0
   }
 }, {
   tableName: 'market_breadth',

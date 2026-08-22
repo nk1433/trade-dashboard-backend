@@ -477,4 +477,5 @@ export {
     processSLTBScan,
     processBullishReversalScan,
     processAntsScan,
+    get52WeekStatsMap,
 };

@@ -438,6 +438,17 @@ export const sync52WeekMarketBreadth = async (fullSync = false) => {
             });
         }
 
+        // Fetch dollarBO counts for the new entries
+        await Promise.all(breadthDataArray.map(async (item) => {
+            try {
+                const scans = await dbWrapper.getScans('dollarBO', item.date);
+                item.dollarBOCount = scans ? scans.length : 0;
+            } catch (err) {
+                console.error(`Error fetching dollarBO scans for ${item.date}:`, err.message);
+                item.dollarBOCount = 0;
+            }
+        }));
+
         console.log(breadthDataArray)
 
         await dbWrapper.upsertMarketBreadth(breadthDataArray);
@@ -784,6 +795,14 @@ export const syncIntradayMarketBreadth = async () => {
         below21dma:           stats.below21dma,
         bullishReversalCount: stats.bullishReversalCount,
     };
+
+    try {
+        const dollarBOScans = await dbWrapper.getScans('dollarBO', todayStr);
+        breadthRecord.dollarBOCount = dollarBOScans ? dollarBOScans.length : 0;
+    } catch (err) {
+        console.error(`Error fetching intraday dollarBO scans:`, err.message);
+        breadthRecord.dollarBOCount = 0;
+    }
 
     await dbWrapper.upsertMarketBreadth([breadthRecord]);
 

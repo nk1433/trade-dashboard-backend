@@ -174,6 +174,38 @@ async function upsertScans(data) {
   }
 }
 
+async function getUniqueScanDates() {
+  try {
+    if (USE_MONGO) {
+      const dates = await ScansMongo.distinct("date");
+      return dates.sort((a, b) => new Date(b) - new Date(a));
+    } else {
+      const dates = await ScansSql.findAll({
+        attributes: ['date'],
+        group: ['date'],
+        order: [['date', 'DESC']]
+      });
+      return dates.map(d => d.date);
+    }
+  } catch (error) {
+    console.error('Error in getUniqueScanDates:', error);
+    return [];
+  }
+}
+
+async function getScansByDate(date) {
+  try {
+    if (USE_MONGO) {
+      return await ScansMongo.find({ date }).exec();
+    } else {
+      return await ScansSql.findAll({ where: { date } });
+    }
+  } catch (error) {
+    console.error('Error in getScansByDate:', error);
+    return [];
+  }
+}
+
 const getTokenFromDB = async () => {
   try {
     if (USE_MONGO) {
@@ -712,4 +744,6 @@ export default {
   upsertUniverse,
   updateInstrumentDetails,
   getInstrumentBySymbol,
+  getUniqueScanDates,
+  getScansByDate,
 };
